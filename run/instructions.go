@@ -15,7 +15,8 @@ import (
 	"strings"
 )
 
-func (r *EnvoyRunner) watchForInstructions(ctx context.Context, instructions telemetry_edge.TelemetryAmbassador_AttachEnvoyClient, errorChan chan<- error) {
+func (r *EnvoyRunner) watchForInstructions(ctx context.Context,
+	errChan chan<- error, instructions telemetry_edge.TelemetryAmbassador_AttachEnvoyClient) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -24,7 +25,7 @@ func (r *EnvoyRunner) watchForInstructions(ctx context.Context, instructions tel
 		default:
 			instruction, err := instructions.Recv()
 			if err != nil {
-				errorChan <- errors.Wrap(err, "failed to receive instruction")
+				errChan <- errors.Wrap(err, "failed to receive instruction")
 				return
 			}
 

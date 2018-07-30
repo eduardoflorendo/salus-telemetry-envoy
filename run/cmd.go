@@ -1,7 +1,6 @@
 package run
 
 import (
-	"github.com/lytics/logrus"
 	"go.uber.org/zap"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"log"
@@ -11,7 +10,7 @@ type RunConfig struct {
 }
 
 func RegisterCommand(app *kingpin.Application) *kingpin.CmdClause {
-	cfg := LoadEnvoyRunnerConfig()
+	cfg := NewEnvoyRunnerConfig()
 	cmd := app.Command("run", "Runs the telemetry-envoy service").
 		Action(func(ctxt *kingpin.ParseContext) error {
 			runner, err := NewEnvoyRunner(cfg)
@@ -22,7 +21,6 @@ func RegisterCommand(app *kingpin.Application) *kingpin.CmdClause {
 			err = runner.Run()
 			if err != nil {
 				runner.log.Warn("terminating", zap.Error(err))
-				logrus.WithError(err).Fatal("terminating")
 			}
 			return nil
 		})
@@ -36,6 +34,9 @@ func RegisterCommand(app *kingpin.Application) *kingpin.CmdClause {
 		Required().ExistingFileVar(&cfg.CertPath)
 	cmd.Flag("key", "Envoy's private key").
 		Required().ExistingFileVar(&cfg.KeyPath)
+
+	cmd.Flag("lumberjack-bind", "The host:port to bind for lumberjack serving").
+		StringVar(&cfg.LumberjackBind)
 
 	return cmd
 }

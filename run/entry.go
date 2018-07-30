@@ -65,7 +65,7 @@ func (r *EnvoyRunner) Run() error {
 	}
 }
 
-func (r *EnvoyRunner) sendKeepAlives(ctx context.Context, errorChan chan<- error) {
+func (r *EnvoyRunner) sendKeepAlives(ctx context.Context, errChan chan<- error) {
 	for {
 		select {
 		case <-time.After(r.config.KeepAliveInterval):
@@ -73,7 +73,7 @@ func (r *EnvoyRunner) sendKeepAlives(ctx context.Context, errorChan chan<- error
 				InstanceId: r.instanceId,
 			})
 			if err != nil {
-				errorChan <- errors.Wrap(err, "failed to send keep alive")
+				errChan <- errors.Wrap(err, "failed to send keep alive")
 				return
 			}
 
@@ -98,10 +98,11 @@ func (r *EnvoyRunner) attach() error {
 		return errors.Wrap(err, "failed to attach Envoy")
 	}
 
-	errorChan := make(chan error, 10)
+	errChan := make(chan error, 10)
 
-	go r.watchForInstructions(ctx, instructions, errorChan)
-	go r.sendKeepAlives(ctx, errorChan)
+	go r.watchForInstructions(ctx, errChan, instructions)
+	go r.sendKeepAlives(ctx, errChan)
+	go r.handleLumberjack(ctx, errChan)
 
 	for {
 		select {
@@ -109,7 +110,7 @@ func (r *EnvoyRunner) attach() error {
 			instructions.CloseSend()
 			return nil
 
-		case err := <-errorChan:
+		case err := <-errChan:
 			r.log.Warn("terminating", zap.Error(err))
 			cancelFunc()
 		}

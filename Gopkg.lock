@@ -23,6 +23,21 @@
   version = "v2.0.0"
 
 [[projects]]
+  name = "github.com/elastic/go-lumber"
+  packages = [
+    "lj",
+    "log",
+    "protocol/v1",
+    "protocol/v2",
+    "server",
+    "server/internal",
+    "server/v1",
+    "server/v2"
+  ]
+  revision = "616041e345fc33c97bc0eb0fa6b388aa07bca3e1"
+  version = "v0.1.0"
+
+[[projects]]
   name = "github.com/golang/protobuf"
   packages = [
     "proto",
@@ -35,10 +50,19 @@
   version = "v1.1.0"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/lytics/logrus"
+  name = "github.com/klauspost/compress"
+  packages = [
+    "flate",
+    "zlib"
+  ]
+  revision = "b939724e787a27c0005cabe3f78e7ed7987ac74f"
+  version = "v1.4.0"
+
+[[projects]]
+  name = "github.com/klauspost/cpuid"
   packages = ["."]
-  revision = "4389a17ed024d8d196b5541116151f378705b0cc"
+  revision = "ae7887de9fa5d2db4eaa8174a7eff2c1ac00f2da"
+  version = "v1.1"
 
 [[projects]]
   name = "github.com/pkg/errors"
@@ -51,12 +75,6 @@
   packages = ["."]
   revision = "f58768cc1a7a7e77a3bd49e98cdd21419399b6a3"
   version = "v1.2.0"
-
-[[projects]]
-  name = "github.com/sirupsen/logrus"
-  packages = ["."]
-  revision = "3e01752db0189b9157070a0e1668a620f9a85da2"
-  version = "v1.0.6"
 
 [[projects]]
   name = "go.uber.org/atomic"
@@ -85,12 +103,6 @@
 
 [[projects]]
   branch = "master"
-  name = "golang.org/x/crypto"
-  packages = ["ssh/terminal"]
-  revision = "a2144134853fc9a27a7b1e3eb4f19f1a76df13c9"
-
-[[projects]]
-  branch = "master"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -102,15 +114,6 @@
     "trace"
   ]
   revision = "a680a1efc54dd51c040b3b5ce4939ea3cf2ea0d1"
-
-[[projects]]
-  branch = "master"
-  name = "golang.org/x/sys"
-  packages = [
-    "unix",
-    "windows"
-  ]
-  revision = "ac767d655b305d4e9612f5f6e33120b9176c4ad4"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -180,6 +183,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c443a3d6dedc90388764601ab7c66c1d049e72e1dbff352cf8ef3d173f0c3eca"
+  inputs-digest = "b27a25b5df0e857c1aeff1ca7a9ad5dcfee63617d6c7a6fd4d2680bf93bc0193"
   solver-name = "gps-cdcl"
   solver-version = 1

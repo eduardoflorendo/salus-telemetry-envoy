@@ -11,13 +11,15 @@ type EnvoyRunnerConfig struct {
 	CaPath            string
 	KeyPath           string
 	BinPath           string
+	LumberjackBind	string
 }
 
-func LoadEnvoyRunnerConfig() *EnvoyRunnerConfig {
+func NewEnvoyRunnerConfig() *EnvoyRunnerConfig {
 	config := &EnvoyRunnerConfig{
 		KeepAliveInterval: 10 * time.Second,
 		AmbassadorAddress: "localhost:6565",
 		BinPath:           "agents",
+		LumberjackBind: "localhost:5044",
 	}
 
 	return config
