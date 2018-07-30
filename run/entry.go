@@ -24,14 +24,14 @@ type EnvoyRunner struct {
 	log        *zap.Logger
 }
 
-func NewEnvoyRunner(config *EnvoyRunnerConfig) (*EnvoyRunner, error) {
-	log, err := zap.NewDevelopment()
+func NewEnvoyRunner() (*EnvoyRunner, error) {
+	log, err := zap.NewDevelopment(zap.AddStacktrace(zap.ErrorLevel))
 	if err != nil {
 		return nil, err
 	}
 
 	return &EnvoyRunner{
-		config: config,
+		config: envoyRunnerConfig,
 		log:    log,
 	}, nil
 }
