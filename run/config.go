@@ -19,7 +19,7 @@ type EnvoyRunnerConfig struct {
 var envoyRunnerConfig = &EnvoyRunnerConfig{
 	KeepAliveInterval: 10 * time.Second,
 	AmbassadorAddress: "localhost:6565",
-	DataPath:          "telemetry-envoy-data",
+	DataPath:          "data-telemetry-envoy",
 	LumberjackBind:    "localhost:5044",
 	GrpcCallLimit:     5 * time.Second,
 }

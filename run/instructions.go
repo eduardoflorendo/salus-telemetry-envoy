@@ -195,7 +195,7 @@ func (r *EnvoyRunner) createMainFilebeatConfig(agentBasePath, mainConfigPath str
 	r.log.Debug("creating main filebeat config file",
 		zap.String("path", mainConfigPath))
 
-	file, err := os.Create(mainConfigPath)
+	file, err := os.OpenFile(mainConfigPath, os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		return errors.Wrap(err, "unable to open main filebeat config file")
 	}

@@ -34,7 +34,7 @@ func main() {
 		}
 
 	case versionCmd.FullCommand():
-		fmt.Printf("%v, commit %v, built at %v", version, commit, date)
+		fmt.Printf("%v, commit %v, built at %v\n", version, commit, date)
 		os.Exit(0)
 
 	}

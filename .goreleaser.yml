@@ -4,7 +4,8 @@ before:
   - dep ensure -vendor-only
   - go generate ./...
 builds:
-- env:
+- binary: telemetry-envoy
+  env:
   - CGO_ENABLED=0
   ignore:
   - goos: darwin
