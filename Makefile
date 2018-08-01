@@ -1,9 +1,12 @@
 OS := $(uname -s)
 
-default: telemetry_edge/telemetry-edge.pb.go
+.PHONY: default
+default:
+	goreleaser release --rm-dist --snapshot
 
-telemetry_edge/telemetry-edge.pb.go: telemetry_edge/telemetry-edge.proto
-	protoc -I telemetry_edge/ $< --go_out=plugins=grpc:telemetry_edge
+.PHONY: generate
+generate:
+	go generate ./...
 
 ifeq (${OS}, Darwin)
 .PHONY: install-protoc

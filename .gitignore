@@ -1,4 +1,6 @@
 /build/
+/dist/
 /.idea/
 *.iml
 /vendor/
+*.pb.go
