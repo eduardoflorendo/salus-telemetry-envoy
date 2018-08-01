@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"io/ioutil"
 	"os"
+	"path"
 	"runtime"
 	"time"
 )
@@ -22,6 +23,8 @@ type EnvoyRunner struct {
 	client     telemetry_edge.TelemetryAmbassadorClient
 	instanceId string
 	log        *zap.Logger
+	agents     *AgentsRunner
+	rootCtx    context.Context
 }
 
 func NewEnvoyRunner() (*EnvoyRunner, error) {
@@ -33,6 +36,7 @@ func NewEnvoyRunner() (*EnvoyRunner, error) {
 	return &EnvoyRunner{
 		config: envoyRunnerConfig,
 		log:    log,
+		agents: NewAgentRunner(envoyRunnerConfig, log),
 	}, nil
 }
 
@@ -52,10 +56,10 @@ func (r *EnvoyRunner) Run() error {
 	r.client = telemetry_edge.NewTelemetryAmbassadorClient(conn)
 	r.instanceId = uuid.NewV1().String()
 
-	rootCtx := context.Background()
+	r.rootCtx = context.Background()
 
 	for {
-		backoff.RetryNotify(r.attach, backoff.WithContext(backoff.NewExponentialBackOff(), rootCtx),
+		backoff.RetryNotify(r.attach, backoff.WithContext(backoff.NewExponentialBackOff(), r.rootCtx),
 			func(err error, delay time.Duration) {
 				r.log.Warn("delaying until next attempt",
 					zap.Error(err), zap.Duration("delay", delay))
@@ -84,7 +88,7 @@ func (r *EnvoyRunner) sendKeepAlives(ctx context.Context, errChan chan<- error) 
 }
 
 func (r *EnvoyRunner) attach() error {
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(r.rootCtx)
 
 	envoySummary := &telemetry_edge.EnvoySummary{
 		InstanceId:      r.instanceId,
@@ -99,6 +103,8 @@ func (r *EnvoyRunner) attach() error {
 	}
 
 	errChan := make(chan error, 10)
+
+	r.purgeAgentConfigs()
 
 	go r.watchForInstructions(ctx, errChan, instructions)
 	go r.sendKeepAlives(ctx, errChan)
@@ -131,6 +137,14 @@ func (r *EnvoyRunner) computeLabels() map[string]string {
 	}
 
 	return labels
+}
+
+func (r *EnvoyRunner) purgeAgentConfigs() {
+	configsPath := path.Join(r.config.DataPath, agentsSubpath, telemetry_edge.AgentType_FILEBEAT.String(), configsSubpath)
+	err := os.RemoveAll(configsPath)
+	if err != nil {
+		r.log.Warn("failed to purge configs directory", zap.Error(err), zap.String("path", configsPath))
+	}
 }
 
 func loadTlsDialOption(CertPath, CaPath, KeyPath string) (grpc.DialOption, error) {
