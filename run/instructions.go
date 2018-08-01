@@ -104,7 +104,12 @@ func (r *EnvoyRunner) processInstall(install *telemetry_edge.EnvoyInstructionIns
 			}
 		}
 
-		err = os.Symlink(agentVersion, path.Join(agentBasePath, currentVerLink))
+		currentSymlinkPath := path.Join(agentBasePath, currentVerLink)
+		err = os.Remove(currentSymlinkPath)
+		if err != nil && !os.IsNotExist(err) {
+			r.log.Warn("failed to delete current version symlink", zap.Error(err))
+		}
+		err = os.Symlink(agentVersion, currentSymlinkPath)
 		if err != nil {
 			r.log.Error("failed to create current version symlink",
 				zap.Error(err), zap.String("version", agentVersion), zap.String("type", agentType))
