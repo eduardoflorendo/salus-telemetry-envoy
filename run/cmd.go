@@ -8,7 +8,7 @@ func RegisterCommand(app *kingpin.Application) *kingpin.CmdClause {
 	cmd := app.Command("run", "Runs the telemetry-envoy service")
 
 	cmd.Flag("ambassador", "The host:port of the Telemetry Ambassador").
-		Required().StringVar(&envoyRunnerConfig.AmbassadorAddress)
+		Default("localhost:6565").StringVar(&envoyRunnerConfig.AmbassadorAddress)
 
 	cmd.Flag("ca", "Ambassador CA cert").
 		Required().ExistingFileVar(&envoyRunnerConfig.CaPath)
@@ -18,7 +18,7 @@ func RegisterCommand(app *kingpin.Application) *kingpin.CmdClause {
 		Required().ExistingFileVar(&envoyRunnerConfig.KeyPath)
 
 	cmd.Flag("lumberjack-bind", "The host:port to bind for lumberjack serving").
-		StringVar(&envoyRunnerConfig.LumberjackBind)
+		Default("localhost:5044").StringVar(&envoyRunnerConfig.LumberjackBind)
 
 	return cmd
 }

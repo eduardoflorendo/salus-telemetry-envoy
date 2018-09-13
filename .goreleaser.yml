@@ -1,7 +1,6 @@
 project_name: telemetry-envoy
 before:
   hooks:
-  - dep ensure -vendor-only
   - go generate ./...
 builds:
 - binary: telemetry-envoy
@@ -26,4 +25,5 @@ changelog:
   filters:
     exclude:
     - '^docs:'
+    - '^misc:'
     - '^test:'

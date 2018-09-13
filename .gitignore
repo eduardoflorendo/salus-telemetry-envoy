@@ -4,3 +4,4 @@
 *.iml
 /vendor/
 *.pb.go
+/telemetry-envoy*

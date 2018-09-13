@@ -1,1 +1,75 @@
-/Users/geof0549/git/telemetry-core/telemetry-protocol/src/main/proto/telemetry-edge.proto
+syntax = "proto3";
+option java_package = "com.rackspace.rmii.services";
+
+service TelemetryAmbassador {
+    rpc AttachEnvoy (EnvoySummary) returns (stream EnvoyInstruction) {}
+    rpc KeepAlive (KeepAliveRequest) returns (KeepAliveResponse) {}
+    rpc PostLogEvent (LogEvent) returns (PostLogEventResponse) {}
+}
+
+message EnvoySummary {
+    string version = 1;
+
+    string instanceId = 2;
+
+    repeated AgentType supportedAgents = 3;
+
+    map<string, string> labels = 4;
+}
+
+enum AgentType {
+    TELEGRAF = 0;
+    FILEBEAT = 1;
+}
+
+message Agent {
+    AgentType type = 1;
+    string version = 2;
+}
+
+message EnvoyInstruction {
+    oneof details {
+        EnvoyInstructionInstall install = 1;
+        EnvoyInstructionConfigure configure = 2;
+        EnvoyInstructionRefresh refresh = 3;
+    }
+}
+
+message EnvoyInstructionInstall {
+    Agent agent = 1;
+    string url = 2;
+    string checksum = 3;
+}
+
+message EnvoyInstructionConfigure {
+    AgentType agentType = 1;
+    repeated ConfigurationOp operations = 2;
+}
+
+message ConfigurationOp {
+    string id = 1;
+    string revision = 2;
+    enum Type {
+        MODIFY = 0;
+        REMOVE = 1;
+    }
+    Type type = 3;
+    string content = 4;
+}
+
+// mainly used to test the ambassador->envoy liveness of the channel, but could eventually
+// contain the full set of instructions of ensure consistency
+message EnvoyInstructionRefresh{}
+
+message KeepAliveRequest{
+    string instanceId = 1;
+}
+message KeepAliveResponse{}
+
+message LogEvent {
+    string instanceId = 1;
+    AgentType agentType = 2;
+    string jsonContent = 3;
+}
+
+message PostLogEventResponse{}
