@@ -31,6 +31,7 @@ var runCmd = &cobra.Command{
 				log.WithError(err).Fatal("Unable to setup lumberjack ingest")
 			}
 
+			go agentsRunner.Start(ctx)
 			go lumberjack.Start(ctx)
 			go connection.Start(ctx)
 
