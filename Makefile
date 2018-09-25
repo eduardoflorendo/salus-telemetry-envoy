@@ -15,15 +15,23 @@ build:
 generate:
 	go generate ./...
 
+.PHONY: test
+test: generate
+	go test ./...
+
+.PHONY: init-os-specific init-gotools init
+init: init-os-specific init-gotools
+
 ifeq (${OS},Darwin)
-.PHONY: init
-init:
+init-os-specific:
 	-brew install protobuf goreleaser
-	go install github.com/golang/protobuf/protoc-gen-go
 else
 ifeq (${OS},Linux)
-init:
+init-os-specific:
 	sudo apt install protobuf-compiler
+endif
+endif
+
+init-gotools:
 	go install github.com/golang/protobuf/protoc-gen-go
-endif
-endif
+	go install github.com/golang/mock/mockgen

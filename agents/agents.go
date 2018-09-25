@@ -24,7 +24,7 @@ const (
 
 type SpecificAgentRunner interface {
 	EnsureRunning(ctx context.Context)
-	ProcessConfig(ctx context.Context, configure *telemetry_edge.EnvoyInstructionConfigure)
+	ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure) error
 	Stop()
 }
 
@@ -62,6 +62,7 @@ func (ar *AgentsRunner) Start(ctx context.Context) {
 	for {
 		select {
 		case <-ar.ctx.Done():
+			log.Debug("stopping specific runners")
 			for _, specific := range ar.specificRunners {
 				specific.Stop()
 			}
@@ -173,7 +174,12 @@ func (ar *AgentsRunner) ProcessConfigure(configure *telemetry_edge.EnvoyInstruct
 	log.WithField("instruction", configure).Debug("processing configure instruction")
 
 	if specificRunner, exists := ar.specificRunners[configure.GetAgentType().String()]; exists {
-		specificRunner.ProcessConfig(ar.ctx, configure)
+		err := specificRunner.ProcessConfig(configure)
+		if err != nil {
+			log.WithError(err).Warn("failed to process agent configuration")
+		} else {
+			specificRunner.EnsureRunning(ar.ctx)
+		}
 	} else {
 		log.WithField("type", configure.GetAgentType()).Warn("unable to configure unknown agent type")
 	}
@@ -182,6 +188,7 @@ func (ar *AgentsRunner) ProcessConfigure(configure *telemetry_edge.EnvoyInstruct
 func (ar *AgentsRunner) PurgeAgentConfigs() {
 	for agentType, _ := range ar.specificRunners {
 		configsPath := path.Join(ar.DataPath, agentsSubpath, agentType, configsSubpath)
+		log.WithField("path", configsPath).Debug("purging agent config directory")
 		err := os.RemoveAll(configsPath)
 		if err != nil {
 			log.WithError(err).WithField("path", configsPath).Warn("failed to purge configs directory")

@@ -53,7 +53,7 @@ func (fbr *FilebeatRunner) EnsureRunning(ctx context.Context) {
 
 	agentType := telemetry_edge.AgentType_FILEBEAT.String()
 
-	if fbr.running != nil {
+	if fbr.running != nil && !fbr.running.cmd.ProcessState.Exited() {
 		log.Debug("filebeat is already running")
 		return
 	}
@@ -93,51 +93,48 @@ func (fbr *FilebeatRunner) EnsureRunning(ctx context.Context) {
 
 func (fbr *FilebeatRunner) Stop() {
 	if fbr.running != nil {
+		log.Debug("stopping filebeat")
 		fbr.running.cancel()
 		fbr.running = nil
 	}
 }
 
-func (fbr *FilebeatRunner) ProcessConfig(ctx context.Context, configure *telemetry_edge.EnvoyInstructionConfigure) {
+func (fbr *FilebeatRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure) error {
 	agentType := telemetry_edge.AgentType_FILEBEAT.String()
 
 	agentBasePath := path.Join(fbr.DataPath, agentsSubpath, agentType)
 	err := os.MkdirAll(agentBasePath, 0755)
 	if err != nil {
-		log.WithError(err).WithField("path", agentBasePath).Error("failed to create agent base path")
-		return
+		return errors.Wrapf(err, "failed to create agent base path: %v", agentBasePath)
 	}
 
 	configsPath := path.Join(agentBasePath, configsSubpath)
 	err = os.MkdirAll(configsPath, 0755)
 	if err != nil {
-		log.WithError(err).WithField("path", configsPath).Error("failed to create configs path for filebeat")
-		return
+		return errors.Wrapf(err, "failed to create configs path for filebeat: %v", configsPath)
 	}
 
 	mainConfigPath := path.Join(agentBasePath, filebeatMainConfigFilename)
 	if _, err := os.Stat(mainConfigPath); os.IsNotExist(err) {
 		err = fbr.createMainFilebeatConfig(agentBasePath, mainConfigPath)
 		if err != nil {
-			log.WithError(err).Error("failed to create main filebeat config")
-			return
+			return errors.Wrap(err, "failed to create main filebeat config")
 		}
 	}
 
 	for _, op := range configure.GetOperations() {
 		log.WithField("op", op).Debug("processing filebeat config operation")
 
-		err = fbr.processFilebeatConfigOp(configsPath, op)
+		err = fbr.processConfigOperation(configsPath, op)
 		if err != nil {
 			log.WithField("op", op).Warn("failed to process filebeat config operation")
 		}
 	}
 
-	fbr.EnsureRunning(ctx)
-
+	return nil
 }
 
-func (fbr *FilebeatRunner) processFilebeatConfigOp(configsPath string, op *telemetry_edge.ConfigurationOp) error {
+func (fbr *FilebeatRunner) processConfigOperation(configsPath string, op *telemetry_edge.ConfigurationOp) error {
 	configInstancePath := filepath.Join(configsPath, fmt.Sprintf("%s.yml", op.GetId()))
 
 	switch op.GetType() {
