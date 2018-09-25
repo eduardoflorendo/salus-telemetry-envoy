@@ -1,0 +1,8 @@
+tls:
+  ca: ca.pem
+  cert: tenantA.pem
+  key: tenantA-key.pem
+ambassador:
+  address: localhost:6565
+lumberjack:
+  bind: localhost:5044

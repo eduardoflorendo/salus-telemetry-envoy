@@ -22,7 +22,7 @@ to be the `dev-support` directory of the `telemetry-core` project.
 Add the following to the "Program arguments":
 
 ```
-run --ca certs/out/ca.pem --cert certs/out/tenantA.pem --key certs/out/tenantA-key.pem
+run --config=envoy-config.yml
 ```
 
 ### gRPC code generating
