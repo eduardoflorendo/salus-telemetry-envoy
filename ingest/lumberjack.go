@@ -36,23 +36,23 @@ type Lumberjack struct {
 
 func init() {
 	viper.SetDefault("lumberjack.bind", "localhost:5044")
+
+	registerIngestor(&Lumberjack{})
 }
 
-func NewLumberjack(connection *ambassador.Connection) (*Lumberjack, error) {
-	lumberjack := &Lumberjack{
-		connection: connection,
-	}
+func (l *Lumberjack) Connect(connection *ambassador.Connection) error {
+	l.connection = connection
 
 	address := viper.GetString("lumberjack.bind")
 
 	var err error
-	lumberjack.server, err = server.ListenAndServe(address, server.V2(true))
+	l.server, err = server.ListenAndServe(address, server.V2(true))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	log.WithField("address", address).Info("Listening for lumberjack")
-	return lumberjack, nil
+	return nil
 }
 
 // Start processes incoming lumberjack batches

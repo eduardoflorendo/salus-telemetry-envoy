@@ -38,21 +38,29 @@ var runCmd = &cobra.Command{
 
 		handleInterrupts(func(ctx context.Context) {
 
-			agentsRunner := agents.NewAgentsRunner()
-			connection, err := ambassador.NewConnection(agentsRunner)
+			agentsRunner, err := agents.NewAgentsRunner()
 			if err != nil {
-				log.WithError(err).Fatal("Unable to setup ambassador connection")
+				log.WithError(err).Fatal("unable to setup agent runner")
 			}
 
-			lumberjack, err := ingest.NewLumberjack(connection)
+			connection, err := ambassador.NewConnection(agentsRunner)
 			if err != nil {
-				log.WithError(err).Fatal("Unable to setup lumberjack ingest")
+				log.WithError(err).Fatal("unable to setup ambassador connection")
+			}
+
+			for _, ingestor := range ingest.Ingestors() {
+				err := ingestor.Connect(connection)
+				if err != nil {
+					log.WithError(err).WithField("ingestor", ingestor).Fatal("failed to connect ingestor")
+				}
 			}
 
 			go agentsRunner.Start(ctx)
-			go lumberjack.Start(ctx)
 			go connection.Start(ctx)
 
+			for _, ingestor := range ingest.Ingestors() {
+				go ingestor.Start(ctx)
+			}
 		})
 	},
 }

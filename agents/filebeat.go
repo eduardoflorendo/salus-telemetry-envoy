@@ -59,11 +59,14 @@ type FilebeatRunner struct {
 	running        *AgentRunningInstance
 }
 
-func NewFilebeatRunner() *FilebeatRunner {
-	return &FilebeatRunner{
-		DataPath:       viper.GetString("agents.dataPath"),
-		LumberjackBind: viper.GetString("lumberjack.bind"),
-	}
+func init() {
+	registerSpecificAgentRunner(telemetry_edge.AgentType_FILEBEAT, &FilebeatRunner{})
+}
+
+func (fbr *FilebeatRunner) Load() error {
+	fbr.DataPath = viper.GetString("agents.dataPath")
+	fbr.LumberjackBind = viper.GetString("lumberjack.bind")
+	return nil
 }
 
 func (fbr *FilebeatRunner) EnsureRunning(ctx context.Context) {

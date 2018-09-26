@@ -22,6 +22,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
+	"github.com/pkg/errors"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -41,8 +42,12 @@ const (
 )
 
 type SpecificAgentRunner interface {
+	// Load gets called after viper's configuration has been populated and before any other use.
+	Load() error
+	// EnsureRunning after installation of an agent and each call to ProcessConfig
 	EnsureRunning(ctx context.Context)
 	ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure) error
+	// Stop should stop the agent's process, if running
 	Stop()
 }
 
@@ -55,23 +60,32 @@ type AgentRunningInstance struct {
 type AgentsRunner struct {
 	DataPath string
 
-	specificRunners map[string]SpecificAgentRunner
-	ctx             context.Context
+	ctx context.Context
+}
+
+var specificAgentRunners = make(map[string]SpecificAgentRunner)
+
+func registerSpecificAgentRunner(agentType telemetry_edge.AgentType, runner SpecificAgentRunner) {
+	specificAgentRunners[agentType.String()] = runner
 }
 
 func init() {
 	viper.SetDefault("agents.dataPath", "data-telemetry-envoy")
 }
 
-func NewAgentsRunner() *AgentsRunner {
+func NewAgentsRunner() (*AgentsRunner, error) {
 	ar := &AgentsRunner{
-		DataPath:        viper.GetString("agents.dataPath"),
-		specificRunners: make(map[string]SpecificAgentRunner),
+		DataPath: viper.GetString("agents.dataPath"),
 	}
 
-	ar.specificRunners[telemetry_edge.AgentType_FILEBEAT.String()] = NewFilebeatRunner()
+	for _, runner := range specificAgentRunners {
+		err := runner.Load()
+		if err != nil {
+			return nil, errors.Wrapf(err, "loading agent runner: %T", runner)
+		}
+	}
 
-	return ar
+	return ar, nil
 }
 
 func (ar *AgentsRunner) Start(ctx context.Context) {
@@ -81,7 +95,7 @@ func (ar *AgentsRunner) Start(ctx context.Context) {
 		select {
 		case <-ar.ctx.Done():
 			log.Debug("stopping specific runners")
-			for _, specific := range ar.specificRunners {
+			for _, specific := range specificAgentRunners {
 				specific.Stop()
 			}
 			return
@@ -93,7 +107,7 @@ func (ar *AgentsRunner) ProcessInstall(install *telemetry_edge.EnvoyInstructionI
 	log.WithField("install", install).Debug("processing install instruction")
 
 	agentType := install.Agent.Type.String()
-	if _, exists := ar.specificRunners[agentType]; !exists {
+	if _, exists := specificAgentRunners[agentType]; !exists {
 		log.WithField("type", agentType).Warn("no specific runner for agent type")
 		return
 	}
@@ -169,7 +183,7 @@ func (ar *AgentsRunner) ProcessInstall(install *telemetry_edge.EnvoyInstructionI
 			return
 		}
 
-		ar.specificRunners[agentType].EnsureRunning(ar.ctx)
+		specificAgentRunners[agentType].EnsureRunning(ar.ctx)
 
 		log.WithFields(log.Fields{
 			"path":    abs,
@@ -183,7 +197,7 @@ func (ar *AgentsRunner) ProcessInstall(install *telemetry_edge.EnvoyInstructionI
 			"version": agentVersion,
 		}).Debug("agent already installed")
 
-		ar.specificRunners[agentType].EnsureRunning(ar.ctx)
+		specificAgentRunners[agentType].EnsureRunning(ar.ctx)
 
 	}
 }
@@ -191,7 +205,7 @@ func (ar *AgentsRunner) ProcessInstall(install *telemetry_edge.EnvoyInstructionI
 func (ar *AgentsRunner) ProcessConfigure(configure *telemetry_edge.EnvoyInstructionConfigure) {
 	log.WithField("instruction", configure).Debug("processing configure instruction")
 
-	if specificRunner, exists := ar.specificRunners[configure.GetAgentType().String()]; exists {
+	if specificRunner, exists := specificAgentRunners[configure.GetAgentType().String()]; exists {
 		err := specificRunner.ProcessConfig(configure)
 		if err != nil {
 			log.WithError(err).Warn("failed to process agent configuration")
@@ -204,7 +218,7 @@ func (ar *AgentsRunner) ProcessConfigure(configure *telemetry_edge.EnvoyInstruct
 }
 
 func (ar *AgentsRunner) PurgeAgentConfigs() {
-	for agentType, _ := range ar.specificRunners {
+	for agentType, _ := range specificAgentRunners {
 		configsPath := path.Join(ar.DataPath, agentsSubpath, agentType, configsSubpath)
 		log.WithField("path", configsPath).Debug("purging agent config directory")
 		err := os.RemoveAll(configsPath)
