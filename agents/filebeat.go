@@ -74,7 +74,7 @@ func (fbr *FilebeatRunner) EnsureRunning(ctx context.Context) {
 
 	agentType := telemetry_edge.AgentType_FILEBEAT.String()
 
-	if fbr.running != nil && !fbr.running.cmd.ProcessState.Exited() {
+	if fbr.running != nil && (fbr.running.cmd.ProcessState == nil || !fbr.running.cmd.ProcessState.Exited()) {
 		log.Debug("filebeat is already running")
 		return
 	}
