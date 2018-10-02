@@ -60,6 +60,7 @@ func (l *Lumberjack) Start(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			log.Info("closing lumberjack ingest")
 			l.server.Close()
 			return
 

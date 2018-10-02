@@ -120,17 +120,9 @@ func (fbr *FilebeatRunner) Stop() {
 	}
 }
 
-func (fbr *FilebeatRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure) error {
-	agentType := telemetry_edge.AgentType_FILEBEAT.String()
-
-	agentBasePath := path.Join(fbr.DataPath, agentsSubpath, agentType)
-	err := os.MkdirAll(agentBasePath, 0755)
-	if err != nil {
-		return errors.Wrapf(err, "failed to create agent base path: %v", agentBasePath)
-	}
-
+func (fbr *FilebeatRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure, agentBasePath string) error {
 	configsPath := path.Join(agentBasePath, configsSubpath)
-	err = os.MkdirAll(configsPath, 0755)
+	err := os.MkdirAll(configsPath, 0755)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create configs path for filebeat: %v", configsPath)
 	}

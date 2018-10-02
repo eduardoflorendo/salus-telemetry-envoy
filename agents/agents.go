@@ -46,7 +46,7 @@ type SpecificAgentRunner interface {
 	Load() error
 	// EnsureRunning after installation of an agent and each call to ProcessConfig
 	EnsureRunning(ctx context.Context)
-	ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure) error
+	ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure, agentBasePath string) error
 	// Stop should stop the agent's process, if running
 	Stop()
 }
@@ -205,8 +205,16 @@ func (ar *AgentsRunner) ProcessInstall(install *telemetry_edge.EnvoyInstructionI
 func (ar *AgentsRunner) ProcessConfigure(configure *telemetry_edge.EnvoyInstructionConfigure) {
 	log.WithField("instruction", configure).Debug("processing configure instruction")
 
-	if specificRunner, exists := specificAgentRunners[configure.GetAgentType().String()]; exists {
-		err := specificRunner.ProcessConfig(configure)
+	agentType := configure.GetAgentType().String()
+	if specificRunner, exists := specificAgentRunners[agentType]; exists {
+		agentBasePath := path.Join(ar.DataPath, agentsSubpath, agentType)
+		err := os.MkdirAll(agentBasePath, 0755)
+		if err != nil {
+			log.WithError(err).Warn("failed to create agent base config path")
+			return
+		}
+
+		err = specificRunner.ProcessConfig(configure, agentBasePath)
 		if err != nil {
 			log.WithError(err).Warn("failed to process agent configuration")
 		} else {

@@ -230,6 +230,9 @@ func (c *Connection) watchForInstructions(ctx context.Context,
 
 			case instruction.GetConfigure() != nil:
 				c.agentsRunner.ProcessConfigure(instruction.GetConfigure())
+
+			case instruction.GetRefresh() != nil:
+				log.Debug("received refresh") //TODO
 			}
 		}
 	}

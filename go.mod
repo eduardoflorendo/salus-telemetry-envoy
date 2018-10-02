@@ -19,7 +19,6 @@ require (
 	github.com/sirupsen/logrus v1.0.6
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/viper v1.2.0
-	github.com/stretchr/objx v0.1.1 // indirect
 	github.com/stretchr/testify v1.2.2
 	golang.org/x/crypto v0.0.0-20180910181607-0e37d006457b // indirect
 	golang.org/x/net v0.0.0-20180906233101-161cd47e91fd

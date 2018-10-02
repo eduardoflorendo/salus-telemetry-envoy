@@ -20,7 +20,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"github.com/racker/telemetry-envoy/agents"
 	"github.com/racker/telemetry-envoy/ambassador"
 	"github.com/racker/telemetry-envoy/ingest"
@@ -76,7 +75,7 @@ func handleInterrupts(body func(ctx context.Context)) {
 	for {
 		select {
 		case <-signalChan:
-			fmt.Println("Cancelling application context")
+			log.Info("cancelling application context")
 			cancel()
 		case <-rootCtx.Done():
 			os.Exit(0)
