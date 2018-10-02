@@ -36,17 +36,17 @@ import (
 )
 
 const (
-	agentsSubpath  = "agents"
-	configsSubpath = "config.d"
-	currentVerLink = "CURRENT"
+	agentsSubpath     = "agents"
+	configsDirSubpath = "config.d"
+	currentVerLink    = "CURRENT"
 )
 
 type SpecificAgentRunner interface {
 	// Load gets called after viper's configuration has been populated and before any other use.
-	Load() error
+	Load(agentBasePath string) error
 	// EnsureRunning after installation of an agent and each call to ProcessConfig
 	EnsureRunning(ctx context.Context)
-	ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure, agentBasePath string) error
+	ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure) error
 	// Stop should stop the agent's process, if running
 	Stop()
 }
@@ -78,8 +78,11 @@ func NewAgentsRunner() (*AgentsRunner, error) {
 		DataPath: viper.GetString("agents.dataPath"),
 	}
 
-	for _, runner := range specificAgentRunners {
-		err := runner.Load()
+	for agentType, runner := range specificAgentRunners {
+
+		agentBasePath := filepath.Join(ar.DataPath, agentsSubpath, agentType)
+
+		err := runner.Load(agentBasePath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "loading agent runner: %T", runner)
 		}
@@ -207,14 +210,8 @@ func (ar *AgentsRunner) ProcessConfigure(configure *telemetry_edge.EnvoyInstruct
 
 	agentType := configure.GetAgentType().String()
 	if specificRunner, exists := specificAgentRunners[agentType]; exists {
-		agentBasePath := path.Join(ar.DataPath, agentsSubpath, agentType)
-		err := os.MkdirAll(agentBasePath, 0755)
-		if err != nil {
-			log.WithError(err).Warn("failed to create agent base config path")
-			return
-		}
 
-		err = specificRunner.ProcessConfig(configure, agentBasePath)
+		err := specificRunner.ProcessConfig(configure)
 		if err != nil {
 			log.WithError(err).Warn("failed to process agent configuration")
 		} else {
@@ -227,7 +224,7 @@ func (ar *AgentsRunner) ProcessConfigure(configure *telemetry_edge.EnvoyInstruct
 
 func (ar *AgentsRunner) PurgeAgentConfigs() {
 	for agentType, _ := range specificAgentRunners {
-		configsPath := path.Join(ar.DataPath, agentsSubpath, agentType, configsSubpath)
+		configsPath := path.Join(ar.DataPath, agentsSubpath, agentType, configsDirSubpath)
 		log.WithField("path", configsPath).Debug("purging agent config directory")
 		err := os.RemoveAll(configsPath)
 		if err != nil {

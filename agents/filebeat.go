@@ -54,8 +54,8 @@ output.logstash:
 `))
 
 type FilebeatRunner struct {
-	DataPath       string
 	LumberjackBind string
+	basePath       string
 	running        *AgentRunningInstance
 }
 
@@ -63,8 +63,8 @@ func init() {
 	registerSpecificAgentRunner(telemetry_edge.AgentType_FILEBEAT, &FilebeatRunner{})
 }
 
-func (fbr *FilebeatRunner) Load() error {
-	fbr.DataPath = viper.GetString("agents.dataPath")
+func (fbr *FilebeatRunner) Load(agentBasePath string) error {
+	fbr.basePath = agentBasePath
 	fbr.LumberjackBind = viper.GetString("lumberjack.bind")
 	return nil
 }
@@ -72,15 +72,12 @@ func (fbr *FilebeatRunner) Load() error {
 func (fbr *FilebeatRunner) EnsureRunning(ctx context.Context) {
 	log.Debug("ensuring filebeat is running")
 
-	agentType := telemetry_edge.AgentType_FILEBEAT.String()
-
 	if fbr.running != nil && (fbr.running.cmd.ProcessState == nil || !fbr.running.cmd.ProcessState.Exited()) {
 		log.Debug("filebeat is already running")
 		return
 	}
 
-	agentBasePath := filepath.Join(fbr.DataPath, agentsSubpath, agentType)
-	if !fbr.hasRequiredFilebeatPaths(agentBasePath) {
+	if !fbr.hasRequiredFilebeatPaths(fbr.basePath) {
 		log.Debug("filebeat not ready to launch due to some missing paths and files")
 		return
 	}
@@ -92,7 +89,7 @@ func (fbr *FilebeatRunner) EnsureRunning(ctx context.Context) {
 		"--path.config", "./",
 		"--path.data", "data",
 		"--path.logs", "logs")
-	cmd.Dir = agentBasePath
+	cmd.Dir = fbr.basePath
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -120,16 +117,16 @@ func (fbr *FilebeatRunner) Stop() {
 	}
 }
 
-func (fbr *FilebeatRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure, agentBasePath string) error {
-	configsPath := path.Join(agentBasePath, configsSubpath)
+func (fbr *FilebeatRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure) error {
+	configsPath := path.Join(fbr.basePath, configsDirSubpath)
 	err := os.MkdirAll(configsPath, 0755)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create configs path for filebeat: %v", configsPath)
 	}
 
-	mainConfigPath := path.Join(agentBasePath, filebeatMainConfigFilename)
+	mainConfigPath := path.Join(fbr.basePath, filebeatMainConfigFilename)
 	if _, err := os.Stat(mainConfigPath); os.IsNotExist(err) {
-		err = fbr.createMainFilebeatConfig(agentBasePath, mainConfigPath)
+		err = fbr.createMainFilebeatConfig(fbr.basePath, mainConfigPath)
 		if err != nil {
 			return errors.Wrap(err, "failed to create main filebeat config")
 		}
@@ -177,7 +174,7 @@ func (fbr *FilebeatRunner) createMainFilebeatConfig(agentBasePath, mainConfigPat
 	defer file.Close()
 
 	data := filebeatMainConfigData{
-		ConfigsPath:    configsSubpath,
+		ConfigsPath:    configsDirSubpath,
 		LumberjackPort: port,
 	}
 
@@ -196,7 +193,7 @@ func (fbr *FilebeatRunner) hasRequiredFilebeatPaths(agentBasePath string) bool {
 		return false
 	}
 
-	configsPath := filepath.Join(agentBasePath, configsSubpath)
+	configsPath := filepath.Join(agentBasePath, configsDirSubpath)
 	if _, err := os.Stat(configsPath); os.IsNotExist(err) {
 		log.WithField("path", configsPath).Debug("missing configs path")
 		return false
