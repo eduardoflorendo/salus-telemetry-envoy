@@ -55,7 +55,7 @@ var runCmd = &cobra.Command{
 			}
 
 			go agentsRunner.Start(ctx)
-			go connection.Start(ctx)
+			go connection.Start(ctx, agents.SupportedAgents())
 
 			for _, ingestor := range ingest.Ingestors() {
 				go ingestor.Start(ctx)

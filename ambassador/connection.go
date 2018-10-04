@@ -46,11 +46,12 @@ type Connection struct {
 	GrpcCallLimit     time.Duration
 	KeepAliveInterval time.Duration
 
-	client         telemetry_edge.TelemetryAmbassadorClient
-	instanceId     string
-	ctx            context.Context
-	agentsRunner   *agents.AgentsRunner
-	grpcDialOption grpc.DialOption
+	client          telemetry_edge.TelemetryAmbassadorClient
+	instanceId      string
+	ctx             context.Context
+	agentsRunner    *agents.AgentsRunner
+	grpcDialOption  grpc.DialOption
+	supportedAgents []telemetry_edge.AgentType
 }
 
 func init() {
@@ -76,8 +77,9 @@ func NewConnection(agentsRunner *agents.AgentsRunner) (*Connection, error) {
 	return connection, nil
 }
 
-func (c *Connection) Start(ctx context.Context) {
+func (c *Connection) Start(ctx context.Context, supportedAgents []telemetry_edge.AgentType) {
 	c.ctx = ctx
+	c.supportedAgents = supportedAgents
 
 	for {
 		backoff.RetryNotify(c.attach, backoff.WithContext(backoff.NewExponentialBackOff(), c.ctx),
@@ -105,7 +107,7 @@ func (c *Connection) attach() error {
 
 	envoySummary := &telemetry_edge.EnvoySummary{
 		InstanceId:      c.instanceId,
-		SupportedAgents: []telemetry_edge.AgentType{telemetry_edge.AgentType_FILEBEAT},
+		SupportedAgents: c.supportedAgents,
 		Labels:          c.computeLabels(),
 	}
 	log.WithField("summary", envoySummary).Info("attaching")

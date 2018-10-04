@@ -19,6 +19,15 @@ generate:
 test: generate
 	go test ./...
 
+.PHONY: coverage
+coverage: generate
+	go test -cover ./...
+
+.PHONY: coverage-report
+coverage-report: generate
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out
+
 .PHONY: init-os-specific init-gotools init
 init: init-os-specific init-gotools
 

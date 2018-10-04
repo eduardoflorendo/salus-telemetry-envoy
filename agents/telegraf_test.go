@@ -29,18 +29,19 @@ import (
 	"testing"
 )
 
-func TestFilebeatRunner_ProcessConfig(t *testing.T) {
+func TestTelegrafRunner_ProcessConfig(t *testing.T) {
 
-	dataPath, err := ioutil.TempDir("", "filebeat_test")
+	dataPath, err := ioutil.TempDir("", "telegraf_test")
 	require.NoError(t, err)
 	defer os.RemoveAll(dataPath)
 
-	runner := &agents.FilebeatRunner{}
+	runner := &agents.TelegrafRunner{}
 	runner.Load(dataPath)
-	runner.LumberjackBind = "localhost:5555"
+	runner.IngestHost = "localhost"
+	runner.IngestPort = 8094
 
 	configure := &telemetry_edge.EnvoyInstructionConfigure{
-		AgentType: telemetry_edge.AgentType_FILEBEAT,
+		AgentType: telemetry_edge.AgentType_TELEGRAF,
 		Operations: []*telemetry_edge.ConfigurationOp{
 			{
 				Id:      "a-b-c",
@@ -54,14 +55,14 @@ func TestFilebeatRunner_ProcessConfig(t *testing.T) {
 	var files, mainConfigs, instanceConfigs int
 	filepath.Walk(dataPath, func(path string, info os.FileInfo, err error) error {
 		files++
-		if filepath.Base(path) == "filebeat.yml" {
+		if filepath.Base(path) == "telegraf.conf" {
 			mainConfigs++
 			content, err := ioutil.ReadFile(path)
 			require.NoError(t, err)
 
-			assert.Contains(t, string(content), "path: config.d/*.yml")
-			assert.Contains(t, string(content), "hosts: [\"localhost:5555\"]")
-		} else if filepath.Base(path) == "a-b-c.yml" {
+			assert.Contains(t, string(content), "outputs.socket_writer")
+			assert.Contains(t, string(content), "address = \"tcp://localhost:8094\"")
+		} else if filepath.Base(path) == "a-b-c.conf" {
 			instanceConfigs++
 			content, err := ioutil.ReadFile(path)
 			require.NoError(t, err)

@@ -38,7 +38,17 @@ message EnvoyInstruction {
 message EnvoyInstructionInstall {
     Agent agent = 1;
     string url = 2;
-    string checksum = 3;
+    Checksum checksum = 3;
+    string exe = 4;
+}
+
+message Checksum {
+    string value = 1;
+    enum Type {
+        SHA256 = 0;
+        SHA512 = 1;
+    }
+    Type type = 2;
 }
 
 message EnvoyInstructionConfigure {
