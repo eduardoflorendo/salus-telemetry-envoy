@@ -39,6 +39,7 @@ message EnvoyInstructionInstall {
     Agent agent = 1;
     string url = 2;
     Checksum checksum = 3;
+    // path to the agent's executable within the package
     string exe = 4;
 }
 
