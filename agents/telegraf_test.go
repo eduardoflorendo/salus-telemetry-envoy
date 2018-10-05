@@ -19,6 +19,8 @@
 package agents_test
 
 import (
+	"context"
+	"github.com/petergtz/pegomock"
 	"github.com/racker/telemetry-envoy/agents"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
 	"github.com/stretchr/testify/assert"
@@ -75,4 +77,23 @@ func TestTelegrafRunner_ProcessConfig(t *testing.T) {
 	assert.NotZero(t, files)
 	assert.Equal(t, 1, mainConfigs)
 	assert.Equal(t, 1, instanceConfigs)
+}
+
+func TestTelegrafRunner_EnsureRunning_NoConfig(t *testing.T) {
+	pegomock.RegisterMockTestingT(t)
+
+	dataPath, err := ioutil.TempDir("", "test_agents")
+	require.NoError(t, err)
+	defer os.RemoveAll(dataPath)
+
+	commandHandler := agents.NewMockCommandHandler()
+
+	telegrafRunner := &agents.TelegrafRunner{}
+	telegrafRunner.SetCommandHandler(commandHandler)
+	telegrafRunner.Load(dataPath)
+
+	ctx := context.Background()
+	telegrafRunner.EnsureRunning(ctx)
+
+	// should not see any interaction with command handler
 }

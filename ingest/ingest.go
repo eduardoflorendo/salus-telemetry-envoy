@@ -24,7 +24,7 @@ import (
 )
 
 type Ingestor interface {
-	Connect(conn *ambassador.Connection) error
+	Bind(conn ambassador.EgressConnection) error
 	Start(ctx context.Context)
 }
 

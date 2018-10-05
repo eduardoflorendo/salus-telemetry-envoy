@@ -16,21 +16,28 @@
  *
  */
 
-package agents
+package agents_test
 
 import (
+	"github.com/petergtz/pegomock"
+	"github.com/racker/telemetry-envoy/agents"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
-	"time"
+	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
-func RegisterAgentRunnerForTesting(agentType telemetry_edge.AgentType, runner SpecificAgentRunner) {
-	registerSpecificAgentRunner(agentType, runner)
-}
+func TestSupportedAgents(t *testing.T) {
+	pegomock.RegisterMockTestingT(t)
 
-func UnregisterAllAgentRunners() {
-	specificAgentRunners = make(map[telemetry_edge.AgentType]SpecificAgentRunner)
-}
+	runner1 := agents.NewMockSpecificAgentRunner()
+	agents.RegisterAgentRunnerForTesting(telemetry_edge.AgentType_FILEBEAT, runner1)
 
-func SetAgentRestartDelay(delay time.Duration) {
-	agentRestartDelay = delay
+	runner2 := agents.NewMockSpecificAgentRunner()
+	agents.RegisterAgentRunnerForTesting(telemetry_edge.AgentType_TELEGRAF, runner2)
+
+	supportedAgents := agents.SupportedAgents()
+	assert.ElementsMatch(t, supportedAgents, []telemetry_edge.AgentType{
+		telemetry_edge.AgentType_TELEGRAF,
+		telemetry_edge.AgentType_FILEBEAT,
+	})
 }

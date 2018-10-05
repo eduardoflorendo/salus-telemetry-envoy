@@ -57,6 +57,7 @@ type FilebeatRunner struct {
 	LumberjackBind string
 	basePath       string
 	running        *AgentRunningInstance
+	commandHandler CommandHandler
 }
 
 func init() {
@@ -67,6 +68,10 @@ func (fbr *FilebeatRunner) Load(agentBasePath string) error {
 	fbr.basePath = agentBasePath
 	fbr.LumberjackBind = viper.GetString("lumberjack.bind")
 	return nil
+}
+
+func (fbr *FilebeatRunner) SetCommandHandler(handler CommandHandler) {
+	fbr.commandHandler = handler
 }
 
 func (fbr *FilebeatRunner) EnsureRunning(ctx context.Context) {
@@ -92,7 +97,7 @@ func (fbr *FilebeatRunner) EnsureRunning(ctx context.Context) {
 		"--path.logs", "logs")
 	cmd.Dir = fbr.basePath
 
-	err := startAgentCommand(cmdCtx, cmd, telemetry_edge.AgentType_FILEBEAT, "")
+	err := fbr.commandHandler.StartAgentCommand(cmdCtx, cmd, telemetry_edge.AgentType_FILEBEAT, "", 0)
 	if err != nil {
 		log.WithError(err).
 			WithField("agentType", telemetry_edge.AgentType_FILEBEAT).
@@ -101,7 +106,7 @@ func (fbr *FilebeatRunner) EnsureRunning(ctx context.Context) {
 		return
 	}
 
-	go waitOnAgentCommand(ctx, fbr, cmd)
+	go fbr.commandHandler.WaitOnAgentCommand(ctx, fbr, cmd)
 
 	runner := &AgentRunningInstance{
 		ctx:    cmdCtx,

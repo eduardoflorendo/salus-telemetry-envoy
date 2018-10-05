@@ -1,0 +1,21 @@
+#!/bin/sh
+
+trap "echo reload" SIGHUP
+
+if [ $# -gt 0 ]; then
+    touch $1
+fi
+
+cat <<END
+2018-10-05T19:57:33Z I! Starting Telegraf 1.8.0
+2018-10-05T19:57:33Z I! Loaded inputs: inputs.cpu
+2018-10-05T19:57:33Z I! Loaded aggregators:
+2018-10-05T19:57:33Z I! Loaded processors:
+2018-10-05T19:57:33Z I! Loaded outputs: socket_writer
+2018-10-05T19:57:33Z I! Tags enabled: host=MS90HCG8WL
+2018-10-05T19:57:33Z I! Agent Config: Interval:10s, Quiet:false, Hostname:"MS90HCG8WL", Flush Interval:10s
+END
+
+while true; do
+  sleep 10000
+done

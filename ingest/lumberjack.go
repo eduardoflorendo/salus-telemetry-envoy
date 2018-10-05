@@ -30,7 +30,7 @@ import (
 )
 
 type Lumberjack struct {
-	connection *ambassador.Connection
+	connection ambassador.EgressConnection
 	server     server.Server
 }
 
@@ -40,7 +40,7 @@ func init() {
 	registerIngestor(&Lumberjack{})
 }
 
-func (l *Lumberjack) Connect(connection *ambassador.Connection) error {
+func (l *Lumberjack) Bind(connection ambassador.EgressConnection) error {
 	l.connection = connection
 
 	address := viper.GetString("lumberjack.bind")

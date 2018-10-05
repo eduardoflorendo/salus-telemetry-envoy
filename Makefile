@@ -19,6 +19,10 @@ generate:
 test: generate
 	go test ./...
 
+.PHONY: test-verbose
+test-verbose: generate
+	go test -v ./...
+
 .PHONY: coverage
 coverage: generate
 	go test -cover ./...
@@ -43,4 +47,4 @@ endif
 
 init-gotools:
 	go install github.com/golang/protobuf/protoc-gen-go
-	go install github.com/golang/mock/mockgen
+	go install github.com/petergtz/pegomock/pegomock

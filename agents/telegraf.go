@@ -31,6 +31,7 @@ import (
 	"path/filepath"
 	"syscall"
 	"text/template"
+	"time"
 )
 
 const (
@@ -45,16 +46,21 @@ var telegrafMainConfigTmpl = template.Must(template.New("telegrafMain").Parse(`
   data_format = "json"
 `))
 
+var (
+	telegrafStartupDuration = 10 * time.Second
+)
+
 type telegrafMainConfigData struct {
 	IngestHost string
 	IngestPort int
 }
 
 type TelegrafRunner struct {
-	IngestHost string
-	IngestPort int
-	basePath   string
-	running    *AgentRunningInstance
+	IngestHost     string
+	IngestPort     int
+	basePath       string
+	running        *AgentRunningInstance
+	commandHandler CommandHandler
 }
 
 func init() {
@@ -66,6 +72,10 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 	tr.IngestPort = 8094
 	tr.basePath = agentBasePath
 	return nil
+}
+
+func (tr *TelegrafRunner) SetCommandHandler(handler CommandHandler) {
+	tr.commandHandler = handler
 }
 
 func (tr *TelegrafRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure) error {
@@ -125,11 +135,12 @@ func (tr *TelegrafRunner) EnsureRunning(ctx context.Context) {
 	cmd := exec.CommandContext(cmdCtx,
 		filepath.Join(currentVerLink, binSubpath, "telegraf"),
 		"--config", telegrafMainConfigFilename,
-		"--config-directory", configsDirSubpath,
-		"--debug")
+		"--config-directory", configsDirSubpath)
 	cmd.Dir = tr.basePath
 
-	err := startAgentCommand(cmdCtx, cmd, telemetry_edge.AgentType_TELEGRAF, "Agent Config:")
+	err := tr.commandHandler.StartAgentCommand(cmdCtx, cmd,
+		telemetry_edge.AgentType_TELEGRAF,
+		"Agent Config:", telegrafStartupDuration)
 	if err != nil {
 		log.WithError(err).
 			WithField("agentType", telemetry_edge.AgentType_TELEGRAF).
@@ -138,7 +149,7 @@ func (tr *TelegrafRunner) EnsureRunning(ctx context.Context) {
 		return
 	}
 
-	go waitOnAgentCommand(ctx, tr, cmd)
+	go tr.commandHandler.WaitOnAgentCommand(ctx, tr, cmd)
 
 	runner := &AgentRunningInstance{
 		ctx:    cmdCtx,

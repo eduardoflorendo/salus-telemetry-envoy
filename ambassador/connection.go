@@ -38,7 +38,12 @@ import (
 	"time"
 )
 
-type Connection struct {
+type EgressConnection interface {
+	Start(ctx context.Context, supportedAgents []telemetry_edge.AgentType)
+	PostLogEvent(agentType telemetry_edge.AgentType, jsonContent string)
+}
+
+type StandardEgressConnection struct {
 	Tls struct {
 		Ca, Cert, Key string
 	}
@@ -59,8 +64,8 @@ func init() {
 	viper.SetDefault("ambassador.keepAliveInterval", 10*time.Second)
 }
 
-func NewConnection(agentsRunner *agents.AgentsRunner) (*Connection, error) {
-	connection := &Connection{
+func NewEgressConnection(agentsRunner *agents.AgentsRunner) (EgressConnection, error) {
+	connection := &StandardEgressConnection{
 		Address:           viper.GetString("ambassador.address"),
 		GrpcCallLimit:     viper.GetDuration("grpc.callLimit"),
 		KeepAliveInterval: viper.GetDuration("ambassador.keepAliveInterval"),
@@ -77,7 +82,7 @@ func NewConnection(agentsRunner *agents.AgentsRunner) (*Connection, error) {
 	return connection, nil
 }
 
-func (c *Connection) Start(ctx context.Context, supportedAgents []telemetry_edge.AgentType) {
+func (c *StandardEgressConnection) Start(ctx context.Context, supportedAgents []telemetry_edge.AgentType) {
 	c.ctx = ctx
 	c.supportedAgents = supportedAgents
 
@@ -91,7 +96,7 @@ func (c *Connection) Start(ctx context.Context, supportedAgents []telemetry_edge
 	}
 }
 
-func (c *Connection) attach() error {
+func (c *StandardEgressConnection) attach() error {
 
 	log.WithField("address", c.Address).Info("dialing ambassador")
 	conn, err := grpc.Dial(c.Address, c.grpcDialOption)
@@ -119,8 +124,6 @@ func (c *Connection) attach() error {
 
 	errChan := make(chan error, 10)
 
-	c.agentsRunner.PurgeAgentConfigs()
-
 	go c.watchForInstructions(connCtx, errChan, instructions)
 	go c.sendKeepAlives(connCtx, errChan)
 
@@ -137,7 +140,7 @@ func (c *Connection) attach() error {
 	}
 }
 
-func (c *Connection) PostLogEvent(agentType telemetry_edge.AgentType, jsonContent string) {
+func (c *StandardEgressConnection) PostLogEvent(agentType telemetry_edge.AgentType, jsonContent string) {
 	callCtx, callCancel := context.WithTimeout(c.ctx, c.GrpcCallLimit)
 
 	log.Debug("posting log event")
@@ -152,7 +155,7 @@ func (c *Connection) PostLogEvent(agentType telemetry_edge.AgentType, jsonConten
 	callCancel()
 }
 
-func (c *Connection) sendKeepAlives(ctx context.Context, errChan chan<- error) {
+func (c *StandardEgressConnection) sendKeepAlives(ctx context.Context, errChan chan<- error) {
 	for {
 		select {
 		case <-time.After(c.KeepAliveInterval):
@@ -170,7 +173,7 @@ func (c *Connection) sendKeepAlives(ctx context.Context, errChan chan<- error) {
 	}
 }
 
-func (c *Connection) computeLabels() map[string]string {
+func (c *StandardEgressConnection) computeLabels() map[string]string {
 	labels := make(map[string]string)
 
 	labels["os"] = runtime.GOOS
@@ -186,7 +189,7 @@ func (c *Connection) computeLabels() map[string]string {
 	return labels
 }
 
-func (c *Connection) loadTlsDialOption() (grpc.DialOption, error) {
+func (c *StandardEgressConnection) loadTlsDialOption() (grpc.DialOption, error) {
 	// load ours
 	certificate, err := tls.LoadX509KeyPair(
 		c.Tls.Cert,
@@ -212,7 +215,7 @@ func (c *Connection) loadTlsDialOption() (grpc.DialOption, error) {
 	return grpc.WithTransportCredentials(transportCreds), nil
 }
 
-func (c *Connection) watchForInstructions(ctx context.Context,
+func (c *StandardEgressConnection) watchForInstructions(ctx context.Context,
 	errChan chan<- error, instructions telemetry_edge.TelemetryAmbassador_AttachEnvoyClient) {
 	for {
 		select {

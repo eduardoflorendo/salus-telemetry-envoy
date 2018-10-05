@@ -16,11 +16,12 @@
  *
  */
 
+//go:generate pegomock generate --package=agents agents.go
+
 package agents
 
 import (
 	"archive/tar"
-	"bufio"
 	"compress/gzip"
 	"context"
 	"github.com/pkg/errors"
@@ -32,7 +33,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"strings"
 	"time"
 )
 
@@ -43,17 +43,31 @@ const (
 	binSubpath        = "bin"
 	dirPerms          = 0755
 	configFilePerms   = 0600
+)
+
+var (
 	agentRestartDelay = 1 * time.Second
 )
 
 type SpecificAgentRunner interface {
 	// Load gets called after viper's configuration has been populated and before any other use.
 	Load(agentBasePath string) error
+	SetCommandHandler(handler CommandHandler)
 	// EnsureRunning after installation of an agent and each call to ProcessConfig
 	EnsureRunning(ctx context.Context)
 	ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure) error
 	// Stop should stop the agent's process, if running
 	Stop()
+}
+
+type CommandHandler interface {
+	// StartAgentCommand will start the given command and optionally block until a specific phrase
+	// is observed as given by the waitFor argument.
+	// It will also setup "forwarding" of the command's stdout/err to logrus
+	StartAgentCommand(cmdCtx context.Context, cmd *exec.Cmd, agentType telemetry_edge.AgentType, waitFor string, waitForDuration time.Duration) error
+	// WaitOnAgentCommand should be ran as a goroutine to watch for the agent process to end prematurely.
+	// It will take care of restarting the agent via the SpecificAgentRunner's EnsureRunning function.
+	WaitOnAgentCommand(ctx context.Context, agentRunner SpecificAgentRunner, cmd *exec.Cmd)
 }
 
 type AgentRunningInstance struct {
@@ -68,7 +82,7 @@ func init() {
 
 func downloadExtractTarGz(outputPath, url string, exePath string) error {
 
-	log.WithField("url", url).Debug("downloading agent")
+	log.WithField("file", url).Debug("downloading agent")
 	resp, err := http.Get(url)
 	if err != nil {
 		return errors.Wrap(err, "failed to download agent")
@@ -133,103 +147,5 @@ func fileExists(file string) bool {
 		return false
 	} else {
 		return true
-	}
-}
-
-func setupCommandLogging(ctx context.Context, agentType telemetry_edge.AgentType, cmd *exec.Cmd, waitFor string) (<-chan struct{}, error) {
-	stdoutPipe, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
-
-	stderrPipe, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, err
-	}
-
-	waitForChan := make(chan struct{}, 1)
-	if waitFor == "" {
-		close(waitForChan)
-	}
-
-	go handleCommandOutputPipe(ctx, "stdout", stdoutPipe, agentType, waitFor, waitForChan)
-	go handleCommandOutputPipe(ctx, "stderr", stderrPipe, agentType, waitFor, waitForChan)
-
-	return waitForChan, nil
-}
-
-func handleCommandOutputPipe(ctx context.Context, outputType string, stdoutPipe io.ReadCloser, agentType telemetry_edge.AgentType, waitFor string, waitForChan chan struct{}) {
-	stdoutReader := bufio.NewReader(stdoutPipe)
-	defer stdoutPipe.Close()
-	defer log.
-		WithField("agentType", agentType).
-		Debugf("stopping command %s forwarding to logs", outputType)
-
-	checkingWaitFor := waitFor != ""
-	for {
-		select {
-		case <-ctx.Done():
-			return
-
-		default:
-			line, err := stdoutReader.ReadString('\n')
-			if err != nil {
-				if err != io.EOF {
-					log.WithError(err).WithField("agentType", agentType).Warnf("while reading command's %s", outputType)
-				}
-				return
-			}
-			log.WithField("agentType", agentType).Info(line)
-
-			if checkingWaitFor && strings.Contains(line, waitFor) {
-				log.WithField("agentType", agentType).Debug("saw expected content")
-				close(waitForChan)
-				checkingWaitFor = false
-			}
-		}
-	}
-}
-
-func waitOnAgentCommand(ctx context.Context, agentRunner SpecificAgentRunner, cmd *exec.Cmd) {
-	err := cmd.Wait()
-	if err != nil {
-		log.WithError(err).
-			WithField("agentType", telemetry_edge.AgentType_FILEBEAT).
-			Warn("agent exited abnormally")
-	} else {
-		log.
-			WithField("agentType", telemetry_edge.AgentType_FILEBEAT).
-			Info("agent exited successfully")
-	}
-
-	agentRunner.Stop()
-	log.
-		WithField("agentType", telemetry_edge.AgentType_FILEBEAT).
-		Info("scheduling agent restart")
-	time.AfterFunc(agentRestartDelay, func() {
-		agentRunner.EnsureRunning(ctx)
-	})
-}
-
-func startAgentCommand(cmdCtx context.Context, cmd *exec.Cmd, agentType telemetry_edge.AgentType, waitFor string) error {
-	waitForChan, err := setupCommandLogging(cmdCtx, agentType, cmd, waitFor)
-	if err != nil {
-		return errors.New("logging and watching command output")
-	}
-
-	log.
-		WithField("agentType", agentType).
-		WithField("cmd", cmd).
-		Debug("starting agent")
-	err = cmd.Start()
-	if err != nil {
-		return errors.Wrap(err, "failed to start command")
-	}
-
-	select {
-	case <-time.After(5 * time.Second):
-		return errors.New("failed to see expected content")
-	case <-waitForChan:
-		return nil
 	}
 }

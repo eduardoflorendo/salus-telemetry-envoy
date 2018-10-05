@@ -1,0 +1,12 @@
+#!/bin/sh
+
+trap "echo reload" SIGHUP
+
+if [ $# -gt 0 ]; then
+    touch $1
+    echo "Created marker file $1" >&2
+fi
+
+while true; do
+  sleep 10000
+done

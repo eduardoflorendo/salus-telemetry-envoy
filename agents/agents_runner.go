@@ -40,10 +40,15 @@ func NewAgentsRunner() (*AgentsRunner, error) {
 		DataPath: viper.GetString("agents.dataPath"),
 	}
 
+	commandHandler := NewCommandHandler()
+
+	ar.PurgeAgentConfigs()
+
 	for agentType, runner := range specificAgentRunners {
 
 		agentBasePath := filepath.Join(ar.DataPath, agentsSubpath, agentType.String())
 
+		runner.SetCommandHandler(commandHandler)
 		err := runner.Load(agentBasePath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "loading agent runner: %T", runner)
