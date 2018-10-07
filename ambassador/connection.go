@@ -26,6 +26,7 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
 	"github.com/racker/telemetry-envoy/agents"
+	"github.com/racker/telemetry-envoy/config"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
 	"github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
@@ -61,13 +62,14 @@ type StandardEgressConnection struct {
 }
 
 func init() {
-	viper.SetDefault("ambassador.address", "localhost:6565")
+	viper.SetDefault(config.AmbassadorAddress, "localhost:6565")
+	viper.SetDefault("grpc.callLimit", 30*time.Second)
 	viper.SetDefault("ambassador.keepAliveInterval", 10*time.Second)
 }
 
 func NewEgressConnection(agentsRunner agents.AgentsRunner) (EgressConnection, error) {
 	connection := &StandardEgressConnection{
-		Address:           viper.GetString("ambassador.address"),
+		Address:           viper.GetString(config.AmbassadorAddress),
 		GrpcCallLimit:     viper.GetDuration("grpc.callLimit"),
 		KeepAliveInterval: viper.GetDuration("ambassador.keepAliveInterval"),
 		agentsRunner:      agentsRunner,

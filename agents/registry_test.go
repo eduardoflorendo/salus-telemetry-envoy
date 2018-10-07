@@ -29,10 +29,10 @@ import (
 func TestSupportedAgents(t *testing.T) {
 	pegomock.RegisterMockTestingT(t)
 
-	runner1 := agents.NewMockSpecificAgentRunner()
+	runner1 := NewMockSpecificAgentRunner()
 	agents.RegisterAgentRunnerForTesting(telemetry_edge.AgentType_FILEBEAT, runner1)
 
-	runner2 := agents.NewMockSpecificAgentRunner()
+	runner2 := NewMockSpecificAgentRunner()
 	agents.RegisterAgentRunnerForTesting(telemetry_edge.AgentType_TELEGRAF, runner2)
 
 	supportedAgents := agents.SupportedAgents()

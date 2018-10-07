@@ -16,6 +16,6 @@
  *
  */
 
-//go:generate pegomock generate -m github.com/racker/telemetry-envoy/ambassador EgressConnection
+//go:generate pegomock generate -m github.com/racker/telemetry-envoy/agents AgentsRunner
 
-package ingest_test
+package ambassador_test

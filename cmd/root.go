@@ -20,13 +20,11 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-	"time"
-
 	"github.com/mitchellh/go-homedir"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"os"
 )
 
 var (
@@ -56,8 +54,6 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.telemetry-envoy.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug output")
-
-	viper.SetDefault("grpc.callLimit", 30*time.Second)
 }
 
 // initConfig reads in config file and ENV variables if set.

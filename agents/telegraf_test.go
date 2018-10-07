@@ -22,6 +22,7 @@ import (
 	"context"
 	"github.com/petergtz/pegomock"
 	"github.com/racker/telemetry-envoy/agents"
+	"github.com/racker/telemetry-envoy/agents/matchers"
 	"github.com/racker/telemetry-envoy/config"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
 	"github.com/spf13/viper"
@@ -29,11 +30,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"reflect"
 	"testing"
-	"time"
 )
 
 func TestTelegrafRunner_ProcessConfig(t *testing.T) {
@@ -91,7 +89,7 @@ func TestTelegrafRunner_EnsureRunning_NoConfig(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(dataPath)
 
-	mockCommandHandler := agents.NewMockCommandHandler()
+	mockCommandHandler := NewMockCommandHandler()
 
 	telegrafRunner := &agents.TelegrafRunner{}
 	telegrafRunner.SetCommandHandler(mockCommandHandler)
@@ -103,24 +101,6 @@ func TestTelegrafRunner_EnsureRunning_NoConfig(t *testing.T) {
 	telegrafRunner.EnsureRunning(ctx)
 
 	mockCommandHandler.VerifyWasCalled(pegomock.Never()).
-		StartAgentCommand(AnyContext(), AnyCmd(), AnyAgentType(),
-			pegomock.AnyString(), AnyDuration())
-}
-
-func AnyAgentType() telemetry_edge.AgentType {
-	var a telemetry_edge.AgentType
-	pegomock.RegisterMatcher(pegomock.NewAnyMatcher(reflect.TypeOf(a)))
-	return a
-}
-
-func AnyDuration() time.Duration {
-	var d time.Duration
-	pegomock.RegisterMatcher(pegomock.NewAnyMatcher(reflect.TypeOf(d)))
-	return d
-}
-
-func AnyCmd() *exec.Cmd {
-	var c *exec.Cmd
-	pegomock.RegisterMatcher(pegomock.NewAnyMatcher(reflect.TypeOf(c)))
-	return c
+		StartAgentCommand(matchers.AnyContextContext(), matchers.AnyPtrToExecCmd(), matchers.AnyTelemetryEdgeAgentType(),
+			pegomock.AnyString(), matchers.AnyTimeDuration())
 }

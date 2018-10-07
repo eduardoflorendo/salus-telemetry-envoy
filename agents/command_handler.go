@@ -30,6 +30,16 @@ import (
 	"time"
 )
 
+type CommandHandler interface {
+	// StartAgentCommand will start the given command and optionally block until a specific phrase
+	// is observed as given by the waitFor argument.
+	// It will also setup "forwarding" of the command's stdout/err to logrus
+	StartAgentCommand(cmdCtx context.Context, cmd *exec.Cmd, agentType telemetry_edge.AgentType, waitFor string, waitForDuration time.Duration) error
+	// WaitOnAgentCommand should be ran as a goroutine to watch for the agent process to end prematurely.
+	// It will take care of restarting the agent via the SpecificAgentRunner's EnsureRunning function.
+	WaitOnAgentCommand(ctx context.Context, agentRunner SpecificAgentRunner, cmd *exec.Cmd)
+}
+
 type StandardCommandHandler struct{}
 
 func NewCommandHandler() CommandHandler {

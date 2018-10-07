@@ -21,6 +21,7 @@ package agents_test
 import (
 	"github.com/petergtz/pegomock"
 	"github.com/racker/telemetry-envoy/agents"
+	"github.com/racker/telemetry-envoy/agents/matchers"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -75,7 +76,7 @@ func TestAgentsRunner_ProcessInstall(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, agentsRunner)
 
-			mockSpecificAgentRunner := agents.NewMockSpecificAgentRunner()
+			mockSpecificAgentRunner := NewMockSpecificAgentRunner()
 			agents.RegisterAgentRunnerForTesting(tt.agentType, mockSpecificAgentRunner)
 
 			install := &telemetry_edge.EnvoyInstructionInstall{
@@ -89,7 +90,7 @@ func TestAgentsRunner_ProcessInstall(t *testing.T) {
 
 			agentsRunner.ProcessInstall(install)
 
-			mockSpecificAgentRunner.VerifyWasCalledOnce().EnsureRunning(AnyContext())
+			mockSpecificAgentRunner.VerifyWasCalledOnce().EnsureRunning(matchers.AnyContextContext())
 
 			_, exeFilename := path.Split(tt.exe)
 			assert.FileExists(t, path.Join(dataPath, "agents", tt.agentType.String(), tt.version, "bin", exeFilename))

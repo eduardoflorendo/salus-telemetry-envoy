@@ -24,6 +24,7 @@ import (
 	"github.com/phayes/freeport"
 	"github.com/racker/telemetry-envoy/config"
 	"github.com/racker/telemetry-envoy/ingest"
+	"github.com/racker/telemetry-envoy/ingest/matchers"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -114,7 +115,7 @@ func TestTelegrafJson_Start(t *testing.T) {
 			time.Sleep(10 * time.Millisecond)
 
 			args := mockEgressConnection.VerifyWasCalled(pegomock.Times(tt.totalCount)).
-				PostMetric(AnyMetric()).GetAllCapturedArguments()
+				PostMetric(matchers.AnyPtrToTelemetryEdgeMetric()).GetAllCapturedArguments()
 
 			require.Len(t, args, tt.totalCount)
 			for i := 0; i < tt.totalCount; i++ {

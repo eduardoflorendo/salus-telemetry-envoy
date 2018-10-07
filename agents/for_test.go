@@ -16,17 +16,8 @@
  *
  */
 
-//go:generate pegomock generate --package=agents agents.go
+// NOTE: need to use package mode of pegomock since it can't yet handle same-package interface references
+//go:generate pegomock generate -m github.com/racker/telemetry-envoy/agents CommandHandler
+//go:generate pegomock generate -m github.com/racker/telemetry-envoy/agents SpecificAgentRunner
 
 package agents_test
-
-import (
-	"context"
-	"github.com/petergtz/pegomock"
-	"reflect"
-)
-
-func AnyContext() context.Context {
-	pegomock.RegisterMatcher(pegomock.NewAnyMatcher(reflect.TypeOf((*context.Context)(nil)).Elem()))
-	return context.Background()
-}

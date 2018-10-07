@@ -15,8 +15,13 @@ build:
 generate:
 	go generate ./...
 
+.PHONY: clean
+clean:
+	rm -rf */matchers
+	rm -f */mock_*_test.go
+
 .PHONY: test
-test: generate
+test: clean generate
 	go test ./...
 
 .PHONY: test-verbose

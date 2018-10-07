@@ -23,6 +23,7 @@ import (
 	"context"
 	"github.com/petergtz/pegomock"
 	"github.com/racker/telemetry-envoy/agents"
+	"github.com/racker/telemetry-envoy/agents/matchers"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -109,7 +110,7 @@ func TestStandardCommandHandler_WaitOnAgentCommand(t *testing.T) {
 	commandHandler := agents.NewCommandHandler()
 
 	ctx := context.Background()
-	agentRunner := agents.NewMockSpecificAgentRunner()
+	agentRunner := NewMockSpecificAgentRunner()
 
 	cmdCtx, _ := context.WithCancel(ctx)
 
@@ -124,5 +125,5 @@ func TestStandardCommandHandler_WaitOnAgentCommand(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	agentRunner.VerifyWasCalledOnce().Stop()
-	agentRunner.VerifyWasCalledOnce().EnsureRunning(AnyContext())
+	agentRunner.VerifyWasCalledOnce().EnsureRunning(matchers.AnyContextContext())
 }
