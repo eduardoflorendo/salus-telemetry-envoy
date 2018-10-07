@@ -29,14 +29,14 @@ import (
 	"path/filepath"
 )
 
-type AgentsRunner struct {
+type StandardAgentsRunner struct {
 	DataPath string
 
 	ctx context.Context
 }
 
-func NewAgentsRunner() (*AgentsRunner, error) {
-	ar := &AgentsRunner{
+func NewAgentsRunner() (AgentsRunner, error) {
+	ar := &StandardAgentsRunner{
 		DataPath: viper.GetString("agents.dataPath"),
 	}
 
@@ -58,7 +58,7 @@ func NewAgentsRunner() (*AgentsRunner, error) {
 	return ar, nil
 }
 
-func (ar *AgentsRunner) Start(ctx context.Context) {
+func (ar *StandardAgentsRunner) Start(ctx context.Context) {
 	ar.ctx = ctx
 
 	for {
@@ -73,7 +73,7 @@ func (ar *AgentsRunner) Start(ctx context.Context) {
 	}
 }
 
-func (ar *AgentsRunner) ProcessInstall(install *telemetry_edge.EnvoyInstructionInstall) {
+func (ar *StandardAgentsRunner) ProcessInstall(install *telemetry_edge.EnvoyInstructionInstall) {
 	log.WithField("install", install).Debug("processing install instruction")
 
 	agentType := install.Agent.Type
@@ -137,7 +137,7 @@ func (ar *AgentsRunner) ProcessInstall(install *telemetry_edge.EnvoyInstructionI
 	}
 }
 
-func (ar *AgentsRunner) ProcessConfigure(configure *telemetry_edge.EnvoyInstructionConfigure) {
+func (ar *StandardAgentsRunner) ProcessConfigure(configure *telemetry_edge.EnvoyInstructionConfigure) {
 	log.WithField("instruction", configure).Debug("processing configure instruction")
 
 	agentType := configure.GetAgentType()
@@ -154,8 +154,8 @@ func (ar *AgentsRunner) ProcessConfigure(configure *telemetry_edge.EnvoyInstruct
 	}
 }
 
-func (ar *AgentsRunner) PurgeAgentConfigs() {
-	for agentType, _ := range specificAgentRunners {
+func (ar *StandardAgentsRunner) PurgeAgentConfigs() {
+	for agentType := range specificAgentRunners {
 		configsPath := path.Join(ar.DataPath, agentsSubpath, agentType.String(), configsDirSubpath)
 		log.WithField("path", configsPath).Debug("purging agent config directory")
 		err := os.RemoveAll(configsPath)

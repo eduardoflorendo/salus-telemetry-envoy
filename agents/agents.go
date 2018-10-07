@@ -68,6 +68,12 @@ type CommandHandler interface {
 	WaitOnAgentCommand(ctx context.Context, agentRunner SpecificAgentRunner, cmd *exec.Cmd)
 }
 
+type AgentsRunner interface {
+	Start(ctx context.Context)
+	ProcessInstall(install *telemetry_edge.EnvoyInstructionInstall)
+	ProcessConfigure(configure *telemetry_edge.EnvoyInstructionConfigure)
+}
+
 type AgentRunningInstance struct {
 	ctx    context.Context
 	cancel context.CancelFunc
