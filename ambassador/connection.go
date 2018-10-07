@@ -41,6 +41,7 @@ import (
 type EgressConnection interface {
 	Start(ctx context.Context, supportedAgents []telemetry_edge.AgentType)
 	PostLogEvent(agentType telemetry_edge.AgentType, jsonContent string)
+	PostMetric(metric *telemetry_edge.Metric)
 }
 
 type StandardEgressConnection struct {
@@ -142,6 +143,7 @@ func (c *StandardEgressConnection) attach() error {
 
 func (c *StandardEgressConnection) PostLogEvent(agentType telemetry_edge.AgentType, jsonContent string) {
 	callCtx, callCancel := context.WithTimeout(c.ctx, c.GrpcCallLimit)
+	defer callCancel()
 
 	log.Debug("posting log event")
 	_, err := c.client.PostLogEvent(callCtx, &telemetry_edge.LogEvent{
@@ -152,7 +154,20 @@ func (c *StandardEgressConnection) PostLogEvent(agentType telemetry_edge.AgentTy
 	if err != nil {
 		log.WithError(err).Warn("failed to post log event")
 	}
-	callCancel()
+}
+
+func (c *StandardEgressConnection) PostMetric(metric *telemetry_edge.Metric) {
+	callCtx, callCancel := context.WithTimeout(c.ctx, c.GrpcCallLimit)
+	defer callCancel()
+
+	log.WithField("metric", metric).Debug("posting metric")
+	_, err := c.client.PostMetric(callCtx, &telemetry_edge.PostedMetric{
+		InstanceId: c.instanceId,
+		Metric:     metric,
+	})
+	if err != nil {
+		log.WithError(err).Warn("failed to post metric")
+	}
 }
 
 func (c *StandardEgressConnection) sendKeepAlives(ctx context.Context, errChan chan<- error) {

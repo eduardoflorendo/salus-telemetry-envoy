@@ -1,0 +1,5 @@
+{"fields":{"usage_guest":0,"usage_guest_n
+{"fields":{"usage_guest":0,"usage_guest_nice":0,"usage_idle":96.7,"usage_iowait":0,"usage_irq":0,"usage_nice":0,"usage_softirq":0,"usage_steal":0,"usage_system":2.2,"usage_user":1.1},"name":"cpu","tags":{"cpu":"cpu1"},"timestamp":1538794540000}
+
+{"fields":{"usage_guest":0,"usage_guest_nice":0,"usage_idle":78.4,"usage_iowait":0,"usage_irq":0,"usage_nice":0,"usage_softirq":0,"usage_steal":0,"usage_system":13.4,"usage_user":8.2},"name":"cpu","tags":{"cpu":"cpu2"},"timestamp":1538794540000}
+

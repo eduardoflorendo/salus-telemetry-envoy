@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/racker/telemetry-envoy/config"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -66,7 +67,7 @@ func init() {
 
 func (fbr *FilebeatRunner) Load(agentBasePath string) error {
 	fbr.basePath = agentBasePath
-	fbr.LumberjackBind = viper.GetString("lumberjack.bind")
+	fbr.LumberjackBind = viper.GetString(config.IngestLumberjackBind)
 	return nil
 }
 

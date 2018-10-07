@@ -16,8 +16,6 @@
  *
  */
 
-//go:generate pegomock generate --package=agents agents.go
-
 package agents
 
 import (

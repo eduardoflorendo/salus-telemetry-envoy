@@ -22,9 +22,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/racker/telemetry-envoy/config"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path"
@@ -41,9 +44,11 @@ const (
 var telegrafMainConfigTmpl = template.Must(template.New("telegrafMain").Parse(`
 [agent]
   interval = "10s"
+  omit_hostname = true
 [[outputs.socket_writer]]
   address = "tcp://{{.IngestHost}}:{{.IngestPort}}"
   data_format = "json"
+  json_timestamp_units = "1ms"
 `))
 
 var (
@@ -52,12 +57,12 @@ var (
 
 type telegrafMainConfigData struct {
 	IngestHost string
-	IngestPort int
+	IngestPort string
 }
 
 type TelegrafRunner struct {
-	IngestHost     string
-	IngestPort     int
+	ingestHost     string
+	ingestPort     string
 	basePath       string
 	running        *AgentRunningInstance
 	commandHandler CommandHandler
@@ -68,8 +73,13 @@ func init() {
 }
 
 func (tr *TelegrafRunner) Load(agentBasePath string) error {
-	tr.IngestHost = "localhost"
-	tr.IngestPort = 8094
+	ingestAddr := viper.GetString(config.IngestTelegrafJsonBind)
+	host, port, err := net.SplitHostPort(ingestAddr)
+	if err != nil {
+		return errors.Wrap(err, "couldn't parse telegraf ingest bind")
+	}
+	tr.ingestHost = host
+	tr.ingestPort = port
 	tr.basePath = agentBasePath
 	return nil
 }
@@ -178,8 +188,8 @@ func (tr *TelegrafRunner) createMainConfig(mainConfigPath string) error {
 	defer file.Close()
 
 	data := &telegrafMainConfigData{
-		IngestHost: tr.IngestHost,
-		IngestPort: tr.IngestPort,
+		IngestHost: tr.ingestHost,
+		IngestPort: tr.ingestPort,
 	}
 
 	err = telegrafMainConfigTmpl.Execute(file, data)

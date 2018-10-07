@@ -19,7 +19,6 @@
 package agents_test
 
 import (
-	"context"
 	"github.com/petergtz/pegomock"
 	"github.com/racker/telemetry-envoy/agents"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
@@ -31,7 +30,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path"
-	"reflect"
 	"testing"
 )
 
@@ -97,9 +95,4 @@ func TestAgentsRunner_ProcessInstall(t *testing.T) {
 			assert.FileExists(t, path.Join(dataPath, "agents", tt.agentType.String(), tt.version, "bin", exeFilename))
 		})
 	}
-}
-
-func AnyContext() context.Context {
-	pegomock.RegisterMatcher(pegomock.NewAnyMatcher(reflect.TypeOf((*context.Context)(nil)).Elem()))
-	return context.Background()
 }

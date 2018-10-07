@@ -22,13 +22,18 @@ import (
 	"context"
 	"github.com/petergtz/pegomock"
 	"github.com/racker/telemetry-envoy/agents"
+	"github.com/racker/telemetry-envoy/config"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"reflect"
 	"testing"
+	"time"
 )
 
 func TestTelegrafRunner_ProcessConfig(t *testing.T) {
@@ -38,9 +43,9 @@ func TestTelegrafRunner_ProcessConfig(t *testing.T) {
 	defer os.RemoveAll(dataPath)
 
 	runner := &agents.TelegrafRunner{}
-	runner.Load(dataPath)
-	runner.IngestHost = "localhost"
-	runner.IngestPort = 8094
+	viper.Set(config.IngestTelegrafJsonBind, "localhost:8094")
+	err = runner.Load(dataPath)
+	require.NoError(t, err)
 
 	configure := &telemetry_edge.EnvoyInstructionConfigure{
 		AgentType: telemetry_edge.AgentType_TELEGRAF,
@@ -86,14 +91,36 @@ func TestTelegrafRunner_EnsureRunning_NoConfig(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(dataPath)
 
-	commandHandler := agents.NewMockCommandHandler()
+	mockCommandHandler := agents.NewMockCommandHandler()
 
 	telegrafRunner := &agents.TelegrafRunner{}
-	telegrafRunner.SetCommandHandler(commandHandler)
-	telegrafRunner.Load(dataPath)
+	telegrafRunner.SetCommandHandler(mockCommandHandler)
+	viper.Set(config.IngestTelegrafJsonBind, "localhost:8094")
+	err = telegrafRunner.Load(dataPath)
+	require.NoError(t, err)
 
 	ctx := context.Background()
 	telegrafRunner.EnsureRunning(ctx)
 
-	// should not see any interaction with command handler
+	mockCommandHandler.VerifyWasCalled(pegomock.Never()).
+		StartAgentCommand(AnyContext(), AnyCmd(), AnyAgentType(),
+			pegomock.AnyString(), AnyDuration())
+}
+
+func AnyAgentType() telemetry_edge.AgentType {
+	var a telemetry_edge.AgentType
+	pegomock.RegisterMatcher(pegomock.NewAnyMatcher(reflect.TypeOf(a)))
+	return a
+}
+
+func AnyDuration() time.Duration {
+	var d time.Duration
+	pegomock.RegisterMatcher(pegomock.NewAnyMatcher(reflect.TypeOf(d)))
+	return d
+}
+
+func AnyCmd() *exec.Cmd {
+	var c *exec.Cmd
+	pegomock.RegisterMatcher(pegomock.NewAnyMatcher(reflect.TypeOf(c)))
+	return c
 }

@@ -5,6 +5,7 @@ service TelemetryAmbassador {
     rpc AttachEnvoy (EnvoySummary) returns (stream EnvoyInstruction) {}
     rpc KeepAlive (KeepAliveRequest) returns (KeepAliveResponse) {}
     rpc PostLogEvent (LogEvent) returns (PostLogEventResponse) {}
+    rpc PostMetric (PostedMetric) returns (PostMetricResponse) {}
 }
 
 message EnvoySummary {
@@ -84,3 +85,25 @@ message LogEvent {
 }
 
 message PostLogEventResponse{}
+
+message PostedMetric {
+    string instanceId = 1;
+    Metric metric = 2;
+}
+
+message Metric {
+    oneof variant {
+        NameTagValueMetric nameTagValue = 1;
+    }
+}
+
+message NameTagValueMetric {
+    string name = 1;
+    // in milliseconds
+    int64 timestamp = 2;
+    map<string,string> tags = 3;
+    map<string,double> fvalues = 4;
+    map<string,string> svalues = 5;
+}
+
+message PostMetricResponse{}
