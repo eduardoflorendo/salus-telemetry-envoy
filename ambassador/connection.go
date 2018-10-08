@@ -45,8 +45,23 @@ type EgressConnection interface {
 	PostMetric(metric *telemetry_edge.Metric)
 }
 
+type IdGenerator interface {
+	Generate() string
+}
+
+type StandardIdGenerator struct{}
+
+func NewIdGenerator() IdGenerator {
+	return &StandardIdGenerator{}
+}
+
+func (g *StandardIdGenerator) Generate() string {
+	return uuid.NewV1().String()
+}
+
 type StandardEgressConnection struct {
 	Tls struct {
+		Disabled      bool
 		Ca, Cert, Key string
 	}
 	Address           string
@@ -59,6 +74,7 @@ type StandardEgressConnection struct {
 	agentsRunner    agents.AgentsRunner
 	grpcDialOption  grpc.DialOption
 	supportedAgents []telemetry_edge.AgentType
+	idGenerator     IdGenerator
 }
 
 func init() {
@@ -67,12 +83,13 @@ func init() {
 	viper.SetDefault("ambassador.keepAliveInterval", 10*time.Second)
 }
 
-func NewEgressConnection(agentsRunner agents.AgentsRunner) (EgressConnection, error) {
+func NewEgressConnection(agentsRunner agents.AgentsRunner, idGenerator IdGenerator) (EgressConnection, error) {
 	connection := &StandardEgressConnection{
 		Address:           viper.GetString(config.AmbassadorAddress),
 		GrpcCallLimit:     viper.GetDuration("grpc.callLimit"),
 		KeepAliveInterval: viper.GetDuration("ambassador.keepAliveInterval"),
 		agentsRunner:      agentsRunner,
+		idGenerator:       idGenerator,
 	}
 	viper.UnmarshalKey("tls", &connection.Tls)
 
@@ -95,7 +112,7 @@ func (c *StandardEgressConnection) Start(ctx context.Context, supportedAgents []
 				log.WithError(err).WithField("delay", delay).Warn("delaying until next attempt")
 			})
 
-		c.instanceId = uuid.NewV1().String()
+		c.instanceId = c.idGenerator.Generate()
 	}
 }
 
@@ -109,7 +126,7 @@ func (c *StandardEgressConnection) attach() error {
 	defer conn.Close()
 
 	c.client = telemetry_edge.NewTelemetryAmbassadorClient(conn)
-	c.instanceId = uuid.NewV1().String()
+	c.instanceId = c.idGenerator.Generate()
 
 	connCtx, cancelFunc := context.WithCancel(c.ctx)
 
@@ -207,6 +224,10 @@ func (c *StandardEgressConnection) computeLabels() map[string]string {
 }
 
 func (c *StandardEgressConnection) loadTlsDialOption() (grpc.DialOption, error) {
+	if c.Tls.Disabled {
+		return grpc.WithInsecure(), nil
+	}
+
 	// load ours
 	certificate, err := tls.LoadX509KeyPair(
 		c.Tls.Cert,

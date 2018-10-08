@@ -42,7 +42,7 @@ var runCmd = &cobra.Command{
 				log.WithError(err).Fatal("unable to setup agent runner")
 			}
 
-			connection, err := ambassador.NewEgressConnection(agentsRunner)
+			connection, err := ambassador.NewEgressConnection(agentsRunner, ambassador.NewIdGenerator())
 			if err != nil {
 				log.WithError(err).Fatal("unable to setup ambassador connection")
 			}

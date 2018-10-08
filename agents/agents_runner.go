@@ -104,13 +104,17 @@ func (ar *StandardAgentsRunner) ProcessInstall(install *telemetry_edge.EnvoyInst
 			return
 		}
 
+		// NOTE rather than symlink, might later use a metadata file
 		currentSymlinkPath := path.Join(agentBasePath, currentVerLink)
 		err = os.Remove(currentSymlinkPath)
 		if err != nil && !os.IsNotExist(err) {
+			os.RemoveAll(outputPath)
 			log.WithError(err).Warn("failed to delete current version symlink")
+			return
 		}
 		err = os.Symlink(agentVersion, currentSymlinkPath)
 		if err != nil {
+			os.RemoveAll(outputPath)
 			log.WithError(err).WithFields(log.Fields{
 				"version": agentVersion,
 				"type":    agentType,
