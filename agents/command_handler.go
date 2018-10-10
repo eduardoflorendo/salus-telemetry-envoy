@@ -64,8 +64,12 @@ func (h *StandardCommandHandler) StartAgentCommand(cmdCtx context.Context, cmd *
 	select {
 	case <-time.After(waitForDuration):
 		return errors.New("failed to see expected content")
-	case <-waitForChan:
-		return nil
+	case result := <-waitForChan:
+		if result {
+			return nil
+		} else {
+			return errors.New("command exited before seeing expected content")
+		}
 	}
 }
 
@@ -90,7 +94,7 @@ func (*StandardCommandHandler) WaitOnAgentCommand(ctx context.Context, agentRunn
 	})
 }
 
-func (h *StandardCommandHandler) setupCommandLogging(ctx context.Context, agentType telemetry_edge.AgentType, cmd *exec.Cmd, waitFor string) (<-chan struct{}, error) {
+func (h *StandardCommandHandler) setupCommandLogging(ctx context.Context, agentType telemetry_edge.AgentType, cmd *exec.Cmd, waitFor string) (<-chan bool, error) {
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
@@ -101,9 +105,9 @@ func (h *StandardCommandHandler) setupCommandLogging(ctx context.Context, agentT
 		return nil, err
 	}
 
-	waitForChan := make(chan struct{}, 1)
+	waitForChan := make(chan bool, 1)
 	if waitFor == "" {
-		close(waitForChan)
+		waitForChan <- true
 	}
 
 	go h.handleCommandOutputPipe(ctx, "stdout", stdoutPipe, agentType, waitFor, waitForChan)
@@ -112,7 +116,7 @@ func (h *StandardCommandHandler) setupCommandLogging(ctx context.Context, agentT
 	return waitForChan, nil
 }
 
-func (*StandardCommandHandler) handleCommandOutputPipe(ctx context.Context, outputType string, stdoutPipe io.ReadCloser, agentType telemetry_edge.AgentType, waitFor string, waitForChan chan struct{}) {
+func (*StandardCommandHandler) handleCommandOutputPipe(ctx context.Context, outputType string, stdoutPipe io.ReadCloser, agentType telemetry_edge.AgentType, waitFor string, waitForChan chan bool) {
 	stdoutReader := bufio.NewReader(stdoutPipe)
 	defer stdoutPipe.Close()
 	defer log.
@@ -131,13 +135,14 @@ func (*StandardCommandHandler) handleCommandOutputPipe(ctx context.Context, outp
 				if err != io.EOF {
 					log.WithError(err).WithField("agentType", agentType).Warnf("while reading command's %s", outputType)
 				}
+				waitForChan <- false
 				return
 			}
 			log.WithField("agentType", agentType).Info(line)
 
 			if checkingWaitFor && strings.Contains(line, waitFor) {
 				log.WithField("agentType", agentType).Debug("saw expected content")
-				close(waitForChan)
+				waitForChan <- true
 				checkingWaitFor = false
 			}
 		}
