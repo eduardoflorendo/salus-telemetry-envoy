@@ -143,7 +143,7 @@ func (tr *TelegrafRunner) EnsureRunning(ctx context.Context) {
 	cmdCtx, cancel := context.WithCancel(ctx)
 
 	cmd := exec.CommandContext(cmdCtx,
-		filepath.Join(currentVerLink, binSubpath, "telegraf"),
+		tr.exePath(),
 		"--config", telegrafMainConfigFilename,
 		"--config-directory", configsDirSubpath)
 	cmd.Dir = tr.basePath
@@ -170,6 +170,11 @@ func (tr *TelegrafRunner) EnsureRunning(ctx context.Context) {
 	log.WithField("pid", cmd.Process.Pid).
 		WithField("agentType", telemetry_edge.AgentType_FILEBEAT).
 		Info("started agent")
+}
+
+// exePath returns path to executable relative to baseDir
+func (tr *TelegrafRunner) exePath() string {
+	return filepath.Join(currentVerLink, binSubpath, "telegraf")
 }
 
 func (tr *TelegrafRunner) Stop() {
@@ -234,11 +239,22 @@ func (tr *TelegrafRunner) hasRequiredPaths() bool {
 		return false
 	}
 
+	hasConfigs := false
 	for _, name := range names {
 		if path.Ext(name) == ".conf" {
-			return true
+			hasConfigs = true
 		}
 	}
-	log.WithField("path", configsPath).Debug("missing config files")
-	return false
+	if !hasConfigs {
+		log.WithField("path", configsPath).Debug("missing config files")
+		return false
+	}
+
+	fullExePath := path.Join(tr.basePath, tr.exePath())
+	if !fileExists(fullExePath) {
+		log.WithField("exe", fullExePath).Debug("missing exe")
+		return false
+	}
+
+	return true
 }

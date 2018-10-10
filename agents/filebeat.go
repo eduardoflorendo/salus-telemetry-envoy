@@ -91,7 +91,7 @@ func (fbr *FilebeatRunner) EnsureRunning(ctx context.Context) {
 	cmdCtx, cancel := context.WithCancel(ctx)
 
 	cmd := exec.CommandContext(cmdCtx,
-		filepath.Join(currentVerLink, binSubpath, "filebeat"),
+		fbr.exePath(),
 		"run",
 		"--path.config", "./",
 		"--path.data", "data",
@@ -213,11 +213,27 @@ func (fbr *FilebeatRunner) hasRequiredPaths() bool {
 		return false
 	}
 
+	hasConfigs := false
 	for _, name := range names {
 		if path.Ext(name) == ".yml" {
-			return true
+			hasConfigs = true
 		}
 	}
-	log.WithField("path", configsPath).Debug("missing config files")
-	return false
+	if !hasConfigs {
+		log.WithField("path", configsPath).Debug("missing config files")
+		return false
+	}
+
+	fullExePath := path.Join(fbr.basePath, fbr.exePath())
+	if !fileExists(fullExePath) {
+		log.WithField("exe", fullExePath).Debug("missing exe")
+		return false
+	}
+
+	return true
+}
+
+// exePath returns path to executable relative to baseDir
+func (fbr *FilebeatRunner) exePath() string {
+	return filepath.Join(currentVerLink, binSubpath, "filebeat")
 }

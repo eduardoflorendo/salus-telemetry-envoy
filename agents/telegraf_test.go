@@ -30,6 +30,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 )
@@ -88,6 +89,40 @@ func TestTelegrafRunner_EnsureRunning_NoConfig(t *testing.T) {
 	dataPath, err := ioutil.TempDir("", "test_agents")
 	require.NoError(t, err)
 	defer os.RemoveAll(dataPath)
+
+	mockCommandHandler := NewMockCommandHandler()
+
+	telegrafRunner := &agents.TelegrafRunner{}
+	telegrafRunner.SetCommandHandler(mockCommandHandler)
+	viper.Set(config.IngestTelegrafJsonBind, "localhost:8094")
+	err = telegrafRunner.Load(dataPath)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	telegrafRunner.EnsureRunning(ctx)
+
+	mockCommandHandler.VerifyWasCalled(pegomock.Never()).
+		StartAgentCommand(matchers.AnyContextContext(), matchers.AnyPtrToExecCmd(), matchers.AnyTelemetryEdgeAgentType(),
+			pegomock.AnyString(), matchers.AnyTimeDuration())
+}
+
+func TestTelegrafRunner_EnsureRunning_MissingExe(t *testing.T) {
+	pegomock.RegisterMockTestingT(t)
+
+	dataPath, err := ioutil.TempDir("", "test_agents")
+	require.NoError(t, err)
+	defer os.RemoveAll(dataPath)
+
+	mainConfigFile, err := os.Create(path.Join(dataPath, "telegraf.conf"))
+	require.NoError(t, err)
+	mainConfigFile.Close()
+
+	err = os.Mkdir(path.Join(dataPath, "config.d"), 0755)
+	require.NoError(t, err)
+
+	specificConfigFile, err := os.Create(path.Join(dataPath, "config.d", "123.conf"))
+	require.NoError(t, err)
+	specificConfigFile.Close()
 
 	mockCommandHandler := NewMockCommandHandler()
 
