@@ -15,9 +15,27 @@ build:
 generate:
 	go generate ./...
 
+.PHONY: clean
+clean:
+	rm -rf */matchers
+	rm -f */mock_*_test.go
+
 .PHONY: test
-test: generate
+test: clean generate
 	go test ./...
+
+.PHONY: test-verbose
+test-verbose: generate
+	go test -v ./...
+
+.PHONY: coverage
+coverage: generate
+	go test -cover ./...
+
+.PHONY: coverage-report
+coverage-report: generate
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out
 
 .PHONY: init-os-specific init-gotools init
 init: init-os-specific init-gotools
@@ -34,4 +52,4 @@ endif
 
 init-gotools:
 	go install github.com/golang/protobuf/protoc-gen-go
-	go install github.com/golang/mock/mockgen
+	go install github.com/petergtz/pegomock/pegomock

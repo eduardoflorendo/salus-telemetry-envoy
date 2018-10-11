@@ -31,24 +31,37 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
-	"strings"
+	"time"
 )
 
 const (
 	agentsSubpath     = "agents"
 	configsDirSubpath = "config.d"
 	currentVerLink    = "CURRENT"
+	binSubpath        = "bin"
+	dirPerms          = 0755
+	configFilePerms   = 0600
+)
+
+var (
+	agentRestartDelay = 1 * time.Second
 )
 
 type SpecificAgentRunner interface {
 	// Load gets called after viper's configuration has been populated and before any other use.
 	Load(agentBasePath string) error
+	SetCommandHandler(handler CommandHandler)
 	// EnsureRunning after installation of an agent and each call to ProcessConfig
 	EnsureRunning(ctx context.Context)
 	ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure) error
 	// Stop should stop the agent's process, if running
 	Stop()
+}
+
+type AgentsRunner interface {
+	Start(ctx context.Context)
+	ProcessInstall(install *telemetry_edge.EnvoyInstructionInstall)
+	ProcessConfigure(configure *telemetry_edge.EnvoyInstructionConfigure)
 }
 
 type AgentRunningInstance struct {
@@ -57,178 +70,76 @@ type AgentRunningInstance struct {
 	cmd    *exec.Cmd
 }
 
-type AgentsRunner struct {
-	DataPath string
-
-	ctx context.Context
-}
-
-var specificAgentRunners = make(map[string]SpecificAgentRunner)
-
-func registerSpecificAgentRunner(agentType telemetry_edge.AgentType, runner SpecificAgentRunner) {
-	specificAgentRunners[agentType.String()] = runner
-}
-
 func init() {
 	viper.SetDefault("agents.dataPath", "data-telemetry-envoy")
 }
 
-func NewAgentsRunner() (*AgentsRunner, error) {
-	ar := &AgentsRunner{
-		DataPath: viper.GetString("agents.dataPath"),
-	}
+func downloadExtractTarGz(outputPath, url string, exePath string) error {
 
-	for agentType, runner := range specificAgentRunners {
-
-		agentBasePath := filepath.Join(ar.DataPath, agentsSubpath, agentType)
-
-		err := runner.Load(agentBasePath)
-		if err != nil {
-			return nil, errors.Wrapf(err, "loading agent runner: %T", runner)
-		}
-	}
-
-	return ar, nil
-}
-
-func (ar *AgentsRunner) Start(ctx context.Context) {
-	ar.ctx = ctx
-
-	for {
-		select {
-		case <-ar.ctx.Done():
-			log.Debug("stopping specific runners")
-			for _, specific := range specificAgentRunners {
-				specific.Stop()
-			}
-			return
-		}
-	}
-}
-
-func (ar *AgentsRunner) ProcessInstall(install *telemetry_edge.EnvoyInstructionInstall) {
-	log.WithField("install", install).Debug("processing install instruction")
-
-	agentType := install.Agent.Type.String()
-	if _, exists := specificAgentRunners[agentType]; !exists {
-		log.WithField("type", agentType).Warn("no specific runner for agent type")
-		return
-	}
-
-	agentVersion := install.Agent.Version
-	agentBasePath := path.Join(ar.DataPath, agentsSubpath, agentType)
-	outputPath := path.Join(agentBasePath, agentVersion)
-
-	abs, err := filepath.Abs(outputPath)
+	log.WithField("file", url).Debug("downloading agent")
+	resp, err := http.Get(url)
 	if err != nil {
-		abs = outputPath
+		return errors.Wrap(err, "failed to download agent")
 	}
-	if _, err := os.Stat(outputPath); os.IsNotExist(err) {
-		err := os.MkdirAll(outputPath, 0755)
-		if err != nil {
-			log.WithError(err).WithField("path", outputPath).Error("unable to mkdirs")
-			return
+	defer resp.Body.Close()
+
+	gzipReader, err := gzip.NewReader(resp.Body)
+	if err != nil {
+		return errors.Wrap(err, "unable to ungzip agent download")
+	}
+
+	_, exeFilename := path.Split(exePath)
+	binOutPath := path.Join(outputPath, binSubpath)
+	err = os.Mkdir(binOutPath, dirPerms)
+	if err != nil {
+		return errors.Wrap(err, "unable to create bin directory")
+	}
+
+	processedExe := false
+	tarReader := tar.NewReader(gzipReader)
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
 		}
 
-		log.WithField("url", install.Url).Debug("downloading agent")
-		resp, err := http.Get(install.Url)
-		if err != nil {
-			log.WithError(err).WithField("url", install.Url).Error("failed to download agent")
-			return
-		}
+		if header.Name == exePath {
 
-		gzipReader, err := gzip.NewReader(resp.Body)
-		if err != nil {
-			log.WithError(err).Error("unable to ungzip agent download")
-			return
-		}
-		defer resp.Body.Close()
-
-		tarReader := tar.NewReader(gzipReader)
-		for {
-			header, err := tarReader.Next()
-			if err == io.EOF {
-				break
+			file, err := os.OpenFile(path.Join(binOutPath, exeFilename), os.O_RDWR|os.O_CREATE, os.FileMode(header.Mode))
+			if err != nil {
+				log.WithError(err).Error("unable to open file for writing")
+				continue
 			}
 
-			filename := header.Name
-			stripped := filename[strings.Index(filename, "/")+1:]
-			entryOutPath := path.Join(outputPath, stripped)
-			if header.Typeflag&tar.TypeDir == tar.TypeDir {
-				os.Mkdir(entryOutPath, os.FileMode(header.Mode))
+			_, err = io.Copy(file, tarReader)
+			if err != nil {
+				file.Close()
+				log.WithError(err).Error("unable to write to file")
+				continue
 			} else {
-				file, err := os.OpenFile(entryOutPath, os.O_RDWR|os.O_CREATE, os.FileMode(header.Mode))
-				if err != nil {
-					log.WithError(err).Error("unable to open file for writing")
-					continue
-				}
-
-				_, err = io.Copy(file, tarReader)
-				if err != nil {
-					file.Close()
-					log.WithError(err).Error("unable to write to file")
-					continue
-				}
+				processedExe = true
 			}
 		}
-
-		currentSymlinkPath := path.Join(agentBasePath, currentVerLink)
-		err = os.Remove(currentSymlinkPath)
-		if err != nil && !os.IsNotExist(err) {
-			log.WithError(err).Warn("failed to delete current version symlink")
-		}
-		err = os.Symlink(agentVersion, currentSymlinkPath)
-		if err != nil {
-			log.WithError(err).WithFields(log.Fields{
-				"version": agentVersion,
-				"type":    agentType,
-			}).Error("failed to create current version symlink")
-			return
-		}
-
-		specificAgentRunners[agentType].EnsureRunning(ar.ctx)
-
-		log.WithFields(log.Fields{
-			"path":    abs,
-			"type":    agentType,
-			"version": agentVersion,
-		}).Info("installed agent")
-	} else {
-		log.WithFields(log.Fields{
-			"type":    agentType,
-			"path":    abs,
-			"version": agentVersion,
-		}).Debug("agent already installed")
-
-		specificAgentRunners[agentType].EnsureRunning(ar.ctx)
-
 	}
+
+	if !processedExe {
+		return errors.New("failed to find/process agent executable")
+	}
+
+	return nil
 }
 
-func (ar *AgentsRunner) ProcessConfigure(configure *telemetry_edge.EnvoyInstructionConfigure) {
-	log.WithField("instruction", configure).Debug("processing configure instruction")
-
-	agentType := configure.GetAgentType().String()
-	if specificRunner, exists := specificAgentRunners[agentType]; exists {
-
-		err := specificRunner.ProcessConfig(configure)
-		if err != nil {
-			log.WithError(err).Warn("failed to process agent configuration")
-		} else {
-			specificRunner.EnsureRunning(ar.ctx)
-		}
-	} else {
-		log.WithField("type", configure.GetAgentType()).Warn("unable to configure unknown agent type")
-	}
+func (inst *AgentRunningInstance) IsRunning() bool {
+	return inst != nil && inst.cmd != nil && (inst.cmd.ProcessState == nil || !inst.cmd.ProcessState.Exited())
 }
 
-func (ar *AgentsRunner) PurgeAgentConfigs() {
-	for agentType, _ := range specificAgentRunners {
-		configsPath := path.Join(ar.DataPath, agentsSubpath, agentType, configsDirSubpath)
-		log.WithField("path", configsPath).Debug("purging agent config directory")
-		err := os.RemoveAll(configsPath)
-		if err != nil {
-			log.WithError(err).WithField("path", configsPath).Warn("failed to purge configs directory")
-		}
+func fileExists(file string) bool {
+	if _, err := os.Stat(file); os.IsNotExist(err) {
+		return false
+	} else if err != nil {
+		log.WithError(err).Warn("failed to stat file")
+		return false
+	} else {
+		return true
 	}
 }

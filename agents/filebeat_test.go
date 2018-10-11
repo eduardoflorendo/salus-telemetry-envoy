@@ -35,8 +35,8 @@ func TestFilebeatRunner_ProcessConfig(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(dataPath)
 
-	runner := agents.NewFilebeatRunner()
-	runner.DataPath = dataPath
+	runner := &agents.FilebeatRunner{}
+	runner.Load(dataPath)
 	runner.LumberjackBind = "localhost:5555"
 
 	configure := &telemetry_edge.EnvoyInstructionConfigure{

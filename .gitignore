@@ -5,4 +5,7 @@
 /vendor/
 *.pb.go
 *_mock_test.go
+mock_*_test.go
 /telemetry-envoy*
+/coverage.out
+matchers

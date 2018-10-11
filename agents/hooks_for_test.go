@@ -16,28 +16,21 @@
  *
  */
 
-package ingest
+package agents
 
 import (
-	"context"
-	"github.com/racker/telemetry-envoy/ambassador"
+	"github.com/racker/telemetry-envoy/telemetry_edge"
+	"time"
 )
 
-type Ingestor interface {
-	Bind(conn ambassador.EgressConnection) error
-	Start(ctx context.Context)
+func RegisterAgentRunnerForTesting(agentType telemetry_edge.AgentType, runner SpecificAgentRunner) {
+	registerSpecificAgentRunner(agentType, runner)
 }
 
-var ingestors []Ingestor
-
-func registerIngestor(ingestor Ingestor) {
-	ingestors = append(ingestors, ingestor)
+func UnregisterAllAgentRunners() {
+	specificAgentRunners = make(map[telemetry_edge.AgentType]SpecificAgentRunner)
 }
 
-func Ingestors() []Ingestor {
-	if ingestors == nil {
-		return []Ingestor{}
-	} else {
-		return ingestors
-	}
+func SetAgentRestartDelay(delay time.Duration) {
+	agentRestartDelay = delay
 }

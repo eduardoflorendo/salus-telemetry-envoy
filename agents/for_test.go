@@ -16,28 +16,8 @@
  *
  */
 
-package ingest
+// NOTE: need to use package mode of pegomock since it can't yet handle same-package interface references
+//go:generate pegomock generate -m github.com/racker/telemetry-envoy/agents CommandHandler
+//go:generate pegomock generate -m github.com/racker/telemetry-envoy/agents SpecificAgentRunner
 
-import (
-	"context"
-	"github.com/racker/telemetry-envoy/ambassador"
-)
-
-type Ingestor interface {
-	Bind(conn ambassador.EgressConnection) error
-	Start(ctx context.Context)
-}
-
-var ingestors []Ingestor
-
-func registerIngestor(ingestor Ingestor) {
-	ingestors = append(ingestors, ingestor)
-}
-
-func Ingestors() []Ingestor {
-	if ingestors == nil {
-		return []Ingestor{}
-	} else {
-		return ingestors
-	}
-}
+package agents_test

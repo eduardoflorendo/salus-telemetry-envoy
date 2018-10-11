@@ -4,8 +4,8 @@
 
 First, install Go 1.11 (or newer). On MacOS you can install with `brew install golang`.
 
-After that you can []install the gRPC compiler tooling for Go](https://grpc.io/docs/quickstart/go.html#install-protocol-buffers-v3) 
-and goreleaser. 
+After that you can [install the gRPC compiler tooling for Go](https://grpc.io/docs/quickstart/go.html#install-protocol-buffers-v3) 
+and [goreleaser](https://goreleaser.com/). 
 On MacOS you can install both using `make init`.
 
 ### IntelliJ Run Config

@@ -20,6 +20,18 @@ package agents
 
 import "github.com/racker/telemetry-envoy/telemetry_edge"
 
-func InjectMockRunnersIntoAgentRunner(runner *AgentsRunner, agentRunner SpecificAgentRunner) {
-	runner.specificRunners[telemetry_edge.AgentType_FILEBEAT.String()] = agentRunner
+var specificAgentRunners = make(map[telemetry_edge.AgentType]SpecificAgentRunner)
+
+func registerSpecificAgentRunner(agentType telemetry_edge.AgentType, runner SpecificAgentRunner) {
+	specificAgentRunners[agentType] = runner
+}
+
+func SupportedAgents() []telemetry_edge.AgentType {
+	types := make([]telemetry_edge.AgentType, 0, len(specificAgentRunners))
+
+	for agentType := range specificAgentRunners {
+		types = append(types, agentType)
+	}
+
+	return types
 }

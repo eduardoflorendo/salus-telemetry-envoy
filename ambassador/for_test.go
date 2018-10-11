@@ -16,28 +16,8 @@
  *
  */
 
-package ingest
+//go:generate pegomock generate -m github.com/racker/telemetry-envoy/agents AgentsRunner
+//go:generate pegomock generate -m github.com/racker/telemetry-envoy/telemetry_edge TelemetryAmbassadorServer
+//go:generate pegomock generate -m github.com/racker/telemetry-envoy/ambassador IdGenerator
 
-import (
-	"context"
-	"github.com/racker/telemetry-envoy/ambassador"
-)
-
-type Ingestor interface {
-	Bind(conn ambassador.EgressConnection) error
-	Start(ctx context.Context)
-}
-
-var ingestors []Ingestor
-
-func registerIngestor(ingestor Ingestor) {
-	ingestors = append(ingestors, ingestor)
-}
-
-func Ingestors() []Ingestor {
-	if ingestors == nil {
-		return []Ingestor{}
-	} else {
-		return ingestors
-	}
-}
+package ambassador_test

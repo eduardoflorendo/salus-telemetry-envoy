@@ -42,20 +42,20 @@ var runCmd = &cobra.Command{
 				log.WithError(err).Fatal("unable to setup agent runner")
 			}
 
-			connection, err := ambassador.NewConnection(agentsRunner)
+			connection, err := ambassador.NewEgressConnection(agentsRunner, ambassador.NewIdGenerator())
 			if err != nil {
 				log.WithError(err).Fatal("unable to setup ambassador connection")
 			}
 
 			for _, ingestor := range ingest.Ingestors() {
-				err := ingestor.Connect(connection)
+				err := ingestor.Bind(connection)
 				if err != nil {
 					log.WithError(err).WithField("ingestor", ingestor).Fatal("failed to connect ingestor")
 				}
 			}
 
 			go agentsRunner.Start(ctx)
-			go connection.Start(ctx)
+			go connection.Start(ctx, agents.SupportedAgents())
 
 			for _, ingestor := range ingest.Ingestors() {
 				go ingestor.Start(ctx)

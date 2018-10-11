@@ -26,6 +26,7 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
 	"github.com/racker/telemetry-envoy/agents"
+	"github.com/racker/telemetry-envoy/config"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
 	"github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
@@ -38,32 +39,57 @@ import (
 	"time"
 )
 
-type Connection struct {
+type EgressConnection interface {
+	Start(ctx context.Context, supportedAgents []telemetry_edge.AgentType)
+	PostLogEvent(agentType telemetry_edge.AgentType, jsonContent string)
+	PostMetric(metric *telemetry_edge.Metric)
+}
+
+type IdGenerator interface {
+	Generate() string
+}
+
+type StandardIdGenerator struct{}
+
+func NewIdGenerator() IdGenerator {
+	return &StandardIdGenerator{}
+}
+
+func (g *StandardIdGenerator) Generate() string {
+	return uuid.NewV1().String()
+}
+
+type StandardEgressConnection struct {
 	Tls struct {
+		Disabled      bool
 		Ca, Cert, Key string
 	}
 	Address           string
 	GrpcCallLimit     time.Duration
 	KeepAliveInterval time.Duration
 
-	client         telemetry_edge.TelemetryAmbassadorClient
-	instanceId     string
-	ctx            context.Context
-	agentsRunner   *agents.AgentsRunner
-	grpcDialOption grpc.DialOption
+	client          telemetry_edge.TelemetryAmbassadorClient
+	instanceId      string
+	ctx             context.Context
+	agentsRunner    agents.AgentsRunner
+	grpcDialOption  grpc.DialOption
+	supportedAgents []telemetry_edge.AgentType
+	idGenerator     IdGenerator
 }
 
 func init() {
-	viper.SetDefault("ambassador.address", "localhost:6565")
+	viper.SetDefault(config.AmbassadorAddress, "localhost:6565")
+	viper.SetDefault("grpc.callLimit", 30*time.Second)
 	viper.SetDefault("ambassador.keepAliveInterval", 10*time.Second)
 }
 
-func NewConnection(agentsRunner *agents.AgentsRunner) (*Connection, error) {
-	connection := &Connection{
-		Address:           viper.GetString("ambassador.address"),
+func NewEgressConnection(agentsRunner agents.AgentsRunner, idGenerator IdGenerator) (EgressConnection, error) {
+	connection := &StandardEgressConnection{
+		Address:           viper.GetString(config.AmbassadorAddress),
 		GrpcCallLimit:     viper.GetDuration("grpc.callLimit"),
 		KeepAliveInterval: viper.GetDuration("ambassador.keepAliveInterval"),
 		agentsRunner:      agentsRunner,
+		idGenerator:       idGenerator,
 	}
 	viper.UnmarshalKey("tls", &connection.Tls)
 
@@ -76,8 +102,9 @@ func NewConnection(agentsRunner *agents.AgentsRunner) (*Connection, error) {
 	return connection, nil
 }
 
-func (c *Connection) Start(ctx context.Context) {
+func (c *StandardEgressConnection) Start(ctx context.Context, supportedAgents []telemetry_edge.AgentType) {
 	c.ctx = ctx
+	c.supportedAgents = supportedAgents
 
 	for {
 		backoff.RetryNotify(c.attach, backoff.WithContext(backoff.NewExponentialBackOff(), c.ctx),
@@ -85,11 +112,11 @@ func (c *Connection) Start(ctx context.Context) {
 				log.WithError(err).WithField("delay", delay).Warn("delaying until next attempt")
 			})
 
-		c.instanceId = uuid.NewV1().String()
+		c.instanceId = c.idGenerator.Generate()
 	}
 }
 
-func (c *Connection) attach() error {
+func (c *StandardEgressConnection) attach() error {
 
 	log.WithField("address", c.Address).Info("dialing ambassador")
 	conn, err := grpc.Dial(c.Address, c.grpcDialOption)
@@ -99,13 +126,13 @@ func (c *Connection) attach() error {
 	defer conn.Close()
 
 	c.client = telemetry_edge.NewTelemetryAmbassadorClient(conn)
-	c.instanceId = uuid.NewV1().String()
+	c.instanceId = c.idGenerator.Generate()
 
 	connCtx, cancelFunc := context.WithCancel(c.ctx)
 
 	envoySummary := &telemetry_edge.EnvoySummary{
 		InstanceId:      c.instanceId,
-		SupportedAgents: []telemetry_edge.AgentType{telemetry_edge.AgentType_FILEBEAT},
+		SupportedAgents: c.supportedAgents,
 		Labels:          c.computeLabels(),
 	}
 	log.WithField("summary", envoySummary).Info("attaching")
@@ -116,8 +143,6 @@ func (c *Connection) attach() error {
 	}
 
 	errChan := make(chan error, 10)
-
-	c.agentsRunner.PurgeAgentConfigs()
 
 	go c.watchForInstructions(connCtx, errChan, instructions)
 	go c.sendKeepAlives(connCtx, errChan)
@@ -135,8 +160,9 @@ func (c *Connection) attach() error {
 	}
 }
 
-func (c *Connection) PostLogEvent(agentType telemetry_edge.AgentType, jsonContent string) {
+func (c *StandardEgressConnection) PostLogEvent(agentType telemetry_edge.AgentType, jsonContent string) {
 	callCtx, callCancel := context.WithTimeout(c.ctx, c.GrpcCallLimit)
+	defer callCancel()
 
 	log.Debug("posting log event")
 	_, err := c.client.PostLogEvent(callCtx, &telemetry_edge.LogEvent{
@@ -147,10 +173,23 @@ func (c *Connection) PostLogEvent(agentType telemetry_edge.AgentType, jsonConten
 	if err != nil {
 		log.WithError(err).Warn("failed to post log event")
 	}
-	callCancel()
 }
 
-func (c *Connection) sendKeepAlives(ctx context.Context, errChan chan<- error) {
+func (c *StandardEgressConnection) PostMetric(metric *telemetry_edge.Metric) {
+	callCtx, callCancel := context.WithTimeout(c.ctx, c.GrpcCallLimit)
+	defer callCancel()
+
+	log.WithField("metric", metric).Debug("posting metric")
+	_, err := c.client.PostMetric(callCtx, &telemetry_edge.PostedMetric{
+		InstanceId: c.instanceId,
+		Metric:     metric,
+	})
+	if err != nil {
+		log.WithError(err).Warn("failed to post metric")
+	}
+}
+
+func (c *StandardEgressConnection) sendKeepAlives(ctx context.Context, errChan chan<- error) {
 	for {
 		select {
 		case <-time.After(c.KeepAliveInterval):
@@ -168,7 +207,7 @@ func (c *Connection) sendKeepAlives(ctx context.Context, errChan chan<- error) {
 	}
 }
 
-func (c *Connection) computeLabels() map[string]string {
+func (c *StandardEgressConnection) computeLabels() map[string]string {
 	labels := make(map[string]string)
 
 	labels["os"] = runtime.GOOS
@@ -184,7 +223,11 @@ func (c *Connection) computeLabels() map[string]string {
 	return labels
 }
 
-func (c *Connection) loadTlsDialOption() (grpc.DialOption, error) {
+func (c *StandardEgressConnection) loadTlsDialOption() (grpc.DialOption, error) {
+	if c.Tls.Disabled {
+		return grpc.WithInsecure(), nil
+	}
+
 	// load ours
 	certificate, err := tls.LoadX509KeyPair(
 		c.Tls.Cert,
@@ -210,7 +253,7 @@ func (c *Connection) loadTlsDialOption() (grpc.DialOption, error) {
 	return grpc.WithTransportCredentials(transportCreds), nil
 }
 
-func (c *Connection) watchForInstructions(ctx context.Context,
+func (c *StandardEgressConnection) watchForInstructions(ctx context.Context,
 	errChan chan<- error, instructions telemetry_edge.TelemetryAmbassador_AttachEnvoyClient) {
 	for {
 		select {

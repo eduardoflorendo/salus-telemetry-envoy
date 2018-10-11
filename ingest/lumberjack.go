@@ -24,26 +24,29 @@ import (
 	"github.com/elastic/go-lumber/lj"
 	"github.com/elastic/go-lumber/server"
 	"github.com/racker/telemetry-envoy/ambassador"
+	"github.com/racker/telemetry-envoy/config"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
 type Lumberjack struct {
-	connection *ambassador.Connection
+	egressConn ambassador.EgressConnection
 	server     server.Server
 }
 
+const ()
+
 func init() {
-	viper.SetDefault("lumberjack.bind", "localhost:5044")
+	viper.SetDefault(config.IngestLumberjackBind, "localhost:5044")
 
 	registerIngestor(&Lumberjack{})
 }
 
-func (l *Lumberjack) Connect(connection *ambassador.Connection) error {
-	l.connection = connection
+func (l *Lumberjack) Bind(connection ambassador.EgressConnection) error {
+	l.egressConn = connection
 
-	address := viper.GetString("lumberjack.bind")
+	address := viper.GetString(config.IngestLumberjackBind)
 
 	var err error
 	l.server, err = server.ListenAndServe(address, server.V2(true))
@@ -80,7 +83,7 @@ func (l *Lumberjack) processLumberjackBatch(batch *lj.Batch) {
 			log.WithField("event", string(eventBytes)).Debug("lumberjack event")
 		}
 
-		l.connection.PostLogEvent(telemetry_edge.AgentType_FILEBEAT,
+		l.egressConn.PostLogEvent(telemetry_edge.AgentType_FILEBEAT,
 			string(eventBytes))
 	}
 	batch.ACK()

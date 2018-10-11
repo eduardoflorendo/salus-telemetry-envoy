@@ -16,28 +16,11 @@
  *
  */
 
-package ingest
+package config
 
-import (
-	"context"
-	"github.com/racker/telemetry-envoy/ambassador"
+// Viper configuration keys used inter-package
+const (
+	IngestLumberjackBind   = "ingest.lumberjack.bind"
+	IngestTelegrafJsonBind = "ingest.telegraf.json.bind"
+	AmbassadorAddress      = "ambassador.address"
 )
-
-type Ingestor interface {
-	Bind(conn ambassador.EgressConnection) error
-	Start(ctx context.Context)
-}
-
-var ingestors []Ingestor
-
-func registerIngestor(ingestor Ingestor) {
-	ingestors = append(ingestors, ingestor)
-}
-
-func Ingestors() []Ingestor {
-	if ingestors == nil {
-		return []Ingestor{}
-	} else {
-		return ingestors
-	}
-}
