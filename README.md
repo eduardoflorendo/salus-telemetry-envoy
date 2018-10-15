@@ -1,5 +1,8 @@
 ## Development
 
+NOTE: this application uses Go 1.11 modules, so be sure to clone this outside of
+the `$GOPATH`, which is usually `$HOME/go`.
+
 ### Tooling
 
 First, install Go 1.11 (or newer). On MacOS you can install with `brew install golang`.
@@ -9,6 +12,9 @@ and [goreleaser](https://goreleaser.com/).
 On MacOS you can install both using `make init`.
 
 ### IntelliJ Run Config
+
+If you haven't already, clone the [telemetry-core](https://github.com/racker/rmii-telemetry-core)
+repo. For the following example, the core repo is cloned next to the envoy repo.
 
 When using IntelliJ, install the Go plugin from JetBrains and create a run configuration
 by right-clicking on the `main.go` file and choosing the "Create ..." option under the
@@ -23,6 +29,25 @@ Add the following to the "Program arguments":
 
 ```
 run --config=envoy-config.yml
+```
+
+### Running from command-line
+
+Build the executable by running:
+
+```bash
+make
+```
+
+If you haven't already, clone the [telemetry-core](https://github.com/racker/rmii-telemetry-core)
+repo. For the following example, the core repo is cloned next to the envoy repo, but you can
+clone it to a location of your choosing.
+
+Go over to the core repo's `dev-support` directory and run the built envoy from there:
+
+```bash
+cd ../telemetry-core/dev-support
+../../telemetry-envoy/telemetry-envoy run --config=envoy-config.yml
 ```
 
 ### gRPC code generating
