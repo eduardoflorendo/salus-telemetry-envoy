@@ -1,7 +1,17 @@
 ## Development
 
-NOTE: this application uses Go 1.11 modules, so be sure to clone this outside of
-the `$GOPATH`, which is usually `$HOME/go`.
+### Environment Setup
+
+This application uses Go 1.11 modules, so be sure to clone this **outside** of the `$GOPATH`.
+
+Speaking of which, some of the code generator tooling does expect `$GOPATH` to be set and the tools to
+be available in `$PATH`. As such, it is recommended to add the following to your shell's
+setup file (such as `~/.profile` or `~/.bashrc`):
+
+```
+export GOPATH=$HOME/go
+export PATH="$PATH:$GOPATH/bin"
+```
 
 ### Tooling
 

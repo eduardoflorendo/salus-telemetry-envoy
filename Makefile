@@ -13,6 +13,7 @@ build:
 
 .PHONY: generate
 generate:
+	go generate ./telemetry_edge
 	go generate ./...
 
 .PHONY: clean
