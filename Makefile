@@ -13,10 +13,12 @@ build:
 
 .PHONY: generate
 generate:
+	go generate ./telemetry_edge
 	go generate ./...
 
 .PHONY: clean
 clean:
+	rm -f telemetry-envoy
 	rm -rf */matchers
 	rm -f */mock_*_test.go
 
