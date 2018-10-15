@@ -56,8 +56,8 @@ clone it to a location of your choosing.
 Go over to the core repo's `dev-support` directory and run the built envoy from there:
 
 ```bash
-cd ../telemetry-core/dev-support
-../../telemetry-envoy/telemetry-envoy run --config=envoy-config.yml
+cd ../rmii-telemetry-core/dev-support
+../../rmii-telemetry-envoy/telemetry-envoy run --config=envoy-config.yml
 ```
 
 ### gRPC code generating
