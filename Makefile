@@ -17,6 +17,7 @@ generate:
 
 .PHONY: clean
 clean:
+	rm -f telemetry-envoy
 	rm -rf */matchers
 	rm -f */mock_*_test.go
 
