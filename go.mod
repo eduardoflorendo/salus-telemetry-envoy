@@ -11,6 +11,7 @@ require (
 	github.com/klauspost/cpuid v0.0.0-20170728055534-ae7887de9fa5 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/mitchellh/go-homedir v1.0.0
+	github.com/oliveagle/jsonpath v0.0.0-20180606110733-2e52cf6e6852
 	github.com/onsi/gomega v1.4.2 // indirect
 	github.com/petergtz/pegomock v0.0.0-20180725144810-278dd9bee025
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2

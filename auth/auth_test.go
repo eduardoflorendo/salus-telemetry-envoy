@@ -27,6 +27,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"strings"
 	"testing"
 )
 
@@ -69,7 +70,7 @@ tls:
 func TestLoadCertificates_Provided_BadCertFile(t *testing.T) {
 
 	viper.SetConfigType("yaml")
-	err := viper.ReadConfig(bytes.NewBufferString(`
+	err := viper.ReadConfig(strings.NewReader(`
 tls:
   provided:
     cert: testdata/bad_cert.pem
