@@ -21,11 +21,11 @@ package ambassador
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
 	"github.com/racker/telemetry-envoy/agents"
+	"github.com/racker/telemetry-envoy/auth"
 	"github.com/racker/telemetry-envoy/config"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
 	"github.com/satori/go.uuid"
@@ -33,7 +33,6 @@ import (
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"time"
@@ -60,11 +59,8 @@ func (g *StandardIdGenerator) Generate() string {
 }
 
 type StandardEgressConnection struct {
-	Tls struct {
-		Disabled      bool
-		Ca, Cert, Key string
-	}
 	Address           string
+	TlsDisabled       bool
 	GrpcCallLimit     time.Duration
 	KeepAliveInterval time.Duration
 
@@ -86,12 +82,12 @@ func init() {
 func NewEgressConnection(agentsRunner agents.AgentsRunner, idGenerator IdGenerator) (EgressConnection, error) {
 	connection := &StandardEgressConnection{
 		Address:           viper.GetString(config.AmbassadorAddress),
+		TlsDisabled:       viper.GetBool("tls.disabled"),
 		GrpcCallLimit:     viper.GetDuration("grpc.callLimit"),
 		KeepAliveInterval: viper.GetDuration("ambassador.keepAliveInterval"),
 		agentsRunner:      agentsRunner,
 		idGenerator:       idGenerator,
 	}
-	viper.UnmarshalKey("tls", &connection.Tls)
 
 	var err error
 	connection.grpcDialOption, err = connection.loadTlsDialOption()
@@ -224,30 +220,17 @@ func (c *StandardEgressConnection) computeLabels() map[string]string {
 }
 
 func (c *StandardEgressConnection) loadTlsDialOption() (grpc.DialOption, error) {
-	if c.Tls.Disabled {
+	if c.TlsDisabled {
 		return grpc.WithInsecure(), nil
 	}
 
-	// load ours
-	certificate, err := tls.LoadX509KeyPair(
-		c.Tls.Cert,
-		c.Tls.Key,
-	)
-
-	// load the CA
-	certPool := x509.NewCertPool()
-	bs, err := ioutil.ReadFile(c.Tls.Ca)
+	certificate, certPool, err := auth.LoadCertificates()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read ca cert")
-	}
-
-	ok := certPool.AppendCertsFromPEM(bs)
-	if !ok {
-		return nil, errors.Wrap(err, "failed to append certs")
+		return nil, err
 	}
 
 	transportCreds := credentials.NewTLS(&tls.Config{
-		Certificates: []tls.Certificate{certificate},
+		Certificates: []tls.Certificate{*certificate},
 		RootCAs:      certPool,
 	})
 	return grpc.WithTransportCredentials(transportCreds), nil
