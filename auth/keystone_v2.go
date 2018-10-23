@@ -50,6 +50,10 @@ var tokensPostBody = `{
 
 func init() {
 	viper.SetDefault("tls.keystone_v2.identityServiceUrl", "https://identity.api.rackspacecloud.com/v2.0")
+
+	RegisterAuthTokenProvider("keystone_v2", func() (AuthTokenProvider, error) {
+		return NewKeystoneV2AuthTokenProvider()
+	})
 }
 
 func NewKeystoneV2AuthTokenProvider() (*KeystoneV2AuthTokenProvider, error) {

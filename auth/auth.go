@@ -26,6 +26,7 @@ import (
 	"io/ioutil"
 )
 
+// TlsConfig is populated from the viper config key "tls"
 type TlsConfig struct {
 	Disabled bool
 	// Provided contains paths to the TLS certificates (PEM files) on the local filesystem.
@@ -33,15 +34,10 @@ type TlsConfig struct {
 	Provided *struct {
 		Cert, Key, Ca string
 	}
-}
-
-type AuthToken struct {
-	Header string
-	Value  string
-}
-
-type AuthTokenProvider interface {
-	ProvideAuthToken() (*AuthToken, error)
+	AuthService *struct {
+		Url           string
+		TokenProvider string
+	}
 }
 
 func LoadCertificates() (*tls.Certificate, *x509.CertPool, error) {
@@ -56,6 +52,10 @@ func LoadCertificates() (*tls.Certificate, *x509.CertPool, error) {
 		return nil, nil, errors.New("missing tls.provided configuration")
 	}
 
+	return loadProvidedCertificates(tlsConfig)
+}
+
+func loadProvidedCertificates(tlsConfig *TlsConfig) (*tls.Certificate, *x509.CertPool, error) {
 	certificate, err := tls.LoadX509KeyPair(
 		tlsConfig.Provided.Cert,
 		tlsConfig.Provided.Key,
