@@ -35,6 +35,15 @@ type TlsConfig struct {
 	}
 }
 
+type AuthToken struct {
+	Header string
+	Value  string
+}
+
+type AuthTokenProvider interface {
+	ProvideAuthToken() (*AuthToken, error)
+}
+
 func LoadCertificates() (*tls.Certificate, *x509.CertPool, error) {
 
 	tlsConfig := &TlsConfig{}
