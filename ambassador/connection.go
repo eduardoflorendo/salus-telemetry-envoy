@@ -35,6 +35,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -64,18 +65,20 @@ type StandardEgressConnection struct {
 	GrpcCallLimit     time.Duration
 	KeepAliveInterval time.Duration
 
-	client          telemetry_edge.TelemetryAmbassadorClient
-	instanceId      string
-	ctx             context.Context
-	agentsRunner    agents.AgentsRunner
-	grpcDialOption  grpc.DialOption
-	supportedAgents []telemetry_edge.AgentType
-	idGenerator     IdGenerator
+	client            telemetry_edge.TelemetryAmbassadorClient
+	instanceId        string
+	ctx               context.Context
+	agentsRunner      agents.AgentsRunner
+	grpcTlsDialOption grpc.DialOption
+	certificate       *tls.Certificate
+	supportedAgents   []telemetry_edge.AgentType
+	idGenerator       IdGenerator
 }
 
 func init() {
 	viper.SetDefault(config.AmbassadorAddress, "localhost:6565")
 	viper.SetDefault("grpc.callLimit", 30*time.Second)
+	viper.SetDefault("grpc.maxBackoffDelay", 10*time.Second)
 	viper.SetDefault("ambassador.keepAliveInterval", 10*time.Second)
 }
 
@@ -90,7 +93,7 @@ func NewEgressConnection(agentsRunner agents.AgentsRunner, idGenerator IdGenerat
 	}
 
 	var err error
-	connection.grpcDialOption, err = connection.loadTlsDialOption()
+	connection.grpcTlsDialOption, err = connection.loadTlsDialOption()
 	if err != nil {
 		return nil, err
 	}
@@ -106,6 +109,19 @@ func (c *StandardEgressConnection) Start(ctx context.Context, supportedAgents []
 		backoff.RetryNotify(c.attach, backoff.WithContext(backoff.NewExponentialBackOff(), c.ctx),
 			func(err error, delay time.Duration) {
 				log.WithError(err).WithField("delay", delay).Warn("delaying until next attempt")
+
+				cause := errors.Cause(err)
+				if cause != nil && cause != err {
+					if strings.Contains(cause.Error(), "tls: expired certificate") {
+						log.Warn("authenticating certificate has expired, reloading certificates")
+
+						var loadErr error
+						c.grpcTlsDialOption, loadErr = c.loadTlsDialOption()
+						if loadErr != nil {
+							log.WithError(loadErr).Warn("failed to reload certificates")
+						}
+					}
+				}
 			})
 
 		c.instanceId = c.idGenerator.Generate()
@@ -115,7 +131,13 @@ func (c *StandardEgressConnection) Start(ctx context.Context, supportedAgents []
 func (c *StandardEgressConnection) attach() error {
 
 	log.WithField("address", c.Address).Info("dialing ambassador")
-	conn, err := grpc.Dial(c.Address, c.grpcDialOption)
+	// use a blocking dial, but fail on non-temp errors so that we can catch connectivity errors here rather than during
+	// the attach operation
+	conn, err := grpc.Dial(c.Address,
+		c.grpcTlsDialOption,
+		grpc.WithBlock(),
+		grpc.FailOnNonTempDialError(true),
+	)
 	if err != nil {
 		return errors.Wrap(err, "failed to dial Ambassador")
 	}
@@ -228,6 +250,7 @@ func (c *StandardEgressConnection) loadTlsDialOption() (grpc.DialOption, error) 
 	if err != nil {
 		return nil, err
 	}
+	c.certificate = certificate
 
 	transportCreds := credentials.NewTLS(&tls.Config{
 		Certificates: []tls.Certificate{*certificate},
