@@ -26,11 +26,12 @@ import (
 )
 
 type TestAuthTokenProvider struct {
-	Token string
+	Header string
+	Token  string
 }
 
 func (p *TestAuthTokenProvider) ProvideAuthToken() (*auth.AuthToken, error) {
-	return &auth.AuthToken{Value: p.Token}, nil
+	return &auth.AuthToken{Header: p.Header, Value: p.Token}, nil
 }
 
 func TestGetAuthTokenProvider_Normal(t *testing.T) {

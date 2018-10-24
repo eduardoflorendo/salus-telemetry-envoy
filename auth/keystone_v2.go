@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"github.com/oliveagle/jsonpath"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/http"
@@ -49,7 +50,7 @@ var tokensPostBody = `{
 }`
 
 func init() {
-	viper.SetDefault("tls.keystone_v2.identityServiceUrl", "https://identity.api.rackspacecloud.com/v2.0")
+	viper.SetDefault("tls.keystone_v2.identityServiceUrl", "https://identity.api.rackspacecloud.com/v2.0/")
 
 	RegisterAuthTokenProvider("keystone_v2", func() (AuthTokenProvider, error) {
 		return NewKeystoneV2AuthTokenProvider()
@@ -85,11 +86,23 @@ func (p *KeystoneV2AuthTokenProvider) ProvideAuthToken() (*AuthToken, error) {
 		return nil, errors.Wrap(err, "failed to build token post body")
 	}
 
-	resp, err := http.Post(p.config.IdentityServiceUrl+"/tokens", "application/json", &postBody)
+	fullUrl, err := AppendUrlPath(p.config.IdentityServiceUrl, "tokens")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to build request url")
+	}
+
+	log.WithField("url", fullUrl).Debug("acquiring keystone v2 authentication token")
+
+	resp, err := http.Post(fullUrl, "application/json", &postBody)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to post request for token")
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, errors.Errorf("tokens web request to keystone v2 failed: %s", resp.Status)
+	}
+
 	respBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read response bytes")
@@ -107,6 +120,7 @@ func (p *KeystoneV2AuthTokenProvider) ProvideAuthToken() (*AuthToken, error) {
 	}
 
 	if tokenId, ok := resTokenId.(string); ok {
+		log.Debug("acquired keystone v2 authentication token")
 		return &AuthToken{
 			Header: "X-Auth-Token",
 			Value:  tokenId,

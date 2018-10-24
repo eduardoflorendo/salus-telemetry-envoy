@@ -74,10 +74,44 @@ tls:
 	assert.Equal(t, "ThisIsJustForTesting", token.Value)
 }
 
-func TestKeystoneV2AuthTokenProvider_ProvideAuthToken_BadResponse(t *testing.T) {
+func TestKeystoneV2AuthTokenProvider_ProvideAuthToken_BadStatus(t *testing.T) {
 
 	ts := httptest.NewServer(http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		require.Equal(t, "/tokens", req.URL.Path)
+		assert.Equal(t, "/tokens", req.URL.Path)
+		assert.Equal(t, "application/json", req.Header.Get("Content-Type"))
+
+		reqBytes, err := ioutil.ReadAll(req.Body)
+		require.NoError(t, err)
+
+		verifyKeystoneV2Request(t, reqBytes)
+
+		resp.Header().Set("Content-Type", "text/plain")
+		resp.WriteHeader(500)
+		resp.Write([]byte(""))
+	}))
+	defer ts.Close()
+
+	viper.SetConfigType("yaml")
+	err := viper.ReadConfig(strings.NewReader(fmt.Sprintf(`
+tls:
+  keystone_v2:
+    username: user1
+    apikey: abc123
+    identityServiceUrl: %s
+`, ts.URL)))
+
+	authTokenProvider, err := auth.NewKeystoneV2AuthTokenProvider()
+	require.NoError(t, err)
+
+	_, err = authTokenProvider.ProvideAuthToken()
+	require.Error(t, err)
+}
+
+func TestKeystoneV2AuthTokenProvider_ProvideAuthToken_MalformedResponse(t *testing.T) {
+
+	ts := httptest.NewServer(http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+		assert.Equal(t, "/tokens", req.URL.Path)
+		assert.Equal(t, "application/json", req.Header.Get("Content-Type"))
 
 		reqBytes, err := ioutil.ReadAll(req.Body)
 		require.NoError(t, err)
