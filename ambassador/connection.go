@@ -78,7 +78,6 @@ type StandardEgressConnection struct {
 func init() {
 	viper.SetDefault(config.AmbassadorAddress, "localhost:6565")
 	viper.SetDefault("grpc.callLimit", 30*time.Second)
-	viper.SetDefault("grpc.maxBackoffDelay", 10*time.Second)
 	viper.SetDefault("ambassador.keepAliveInterval", 10*time.Second)
 }
 
