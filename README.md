@@ -1,3 +1,6 @@
+
+[![CircleCI branch](https://img.shields.io/circleci/project/github/racker/rmii-telemetry-envoy/master.svg)](https://circleci.com/gh/racker/rmii-telemetry-envoy)
+
 ## Development
 
 ### Environment Setup
