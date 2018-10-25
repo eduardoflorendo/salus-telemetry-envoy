@@ -48,7 +48,7 @@ init-os-specific:
 else
 ifeq (${OS},Linux)
 init-os-specific:
-	sudo apt install protobuf-compiler
+	sudo apt install -y protobuf-compiler
 endif
 endif
 

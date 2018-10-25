@@ -10,4 +10,6 @@ jobs:
     steps:
       - checkout
 
+      - run: make init
+
       - run: make test
