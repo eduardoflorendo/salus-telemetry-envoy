@@ -53,5 +53,5 @@ endif
 endif
 
 init-gotools:
-	go install github.com/golang/protobuf/protoc-gen-go
-	go install github.com/petergtz/pegomock/pegomock
+	go install -mod=readonly github.com/golang/protobuf/protoc-gen-go
+	go install -mod=readonly github.com/petergtz/pegomock/pegomock
