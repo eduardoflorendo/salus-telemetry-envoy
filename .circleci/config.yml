@@ -12,4 +12,7 @@ jobs:
 
       - run: make init
 
-      - run: make test
+      - run: make test-report-junit
+
+      - store_test_results:
+          path: test-results
