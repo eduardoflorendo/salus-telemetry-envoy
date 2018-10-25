@@ -99,6 +99,9 @@ func TestTelegrafJson_Start(t *testing.T) {
 			go ingestor.Start(ctx)
 			defer cancel()
 
+			// allow for ingestor to bind and accept connections
+			time.Sleep(10 * time.Millisecond)
+
 			conn, err := net.Dial("tcp", addr)
 			require.NoError(t, err)
 			defer conn.Close()
