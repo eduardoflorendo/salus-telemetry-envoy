@@ -30,9 +30,9 @@ import (
 type AuthServiceCertProvider struct{}
 
 type authServiceResponse struct {
-	Certificate string `json:"certificate"`
-	PrivateKey  string `json:"private_key"`
-	IssuingCA   string `json:"issuing_ca"`
+	Certificate          string `json:"certificate"`
+	PrivateKey           string `json:"privateKey"`
+	IssuingCACertificate string `json:"issuingCaCertificate"`
 }
 
 func (p *AuthServiceCertProvider) ProvideCertificates(config *TlsConfig) (*tls.Certificate, *x509.CertPool, error) {
@@ -82,9 +82,9 @@ func (p *AuthServiceCertProvider) ProvideCertificates(config *TlsConfig) (*tls.C
 		return nil, nil, errors.Wrap(err, "failed to decode auth service response")
 	}
 
-	if resp.Certificate == "" || resp.PrivateKey == "" || resp.IssuingCA == "" {
+	if resp.Certificate == "" || resp.PrivateKey == "" || resp.IssuingCACertificate == "" {
 		return nil, nil, errors.Errorf("auth service response was missing a required field: cert=%t, key=%t, ca=%t",
-			resp.Certificate != "", resp.PrivateKey != "", resp.IssuingCA != "")
+			resp.Certificate != "", resp.PrivateKey != "", resp.IssuingCACertificate != "")
 	}
 
 	return p.loadFromResponse(resp)
@@ -97,7 +97,7 @@ func (p *AuthServiceCertProvider) loadFromResponse(response authServiceResponse)
 	}
 
 	certPool := x509.NewCertPool()
-	ok := certPool.AppendCertsFromPEM([]byte(response.IssuingCA))
+	ok := certPool.AppendCertsFromPEM([]byte(response.IssuingCACertificate))
 	if !ok {
 		return nil, nil, errors.New("failed to process CA cert")
 	}
