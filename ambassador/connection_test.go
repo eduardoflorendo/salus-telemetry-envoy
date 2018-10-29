@@ -38,7 +38,6 @@ import (
 
 type TestingAmbassadorService struct {
 	done       chan struct{}
-	attached   chan struct{}
 	attaches   chan *telemetry_edge.EnvoySummary
 	keepAlives chan *telemetry_edge.KeepAliveRequest
 	logs       chan *telemetry_edge.LogEvent
@@ -48,7 +47,6 @@ type TestingAmbassadorService struct {
 func NewTestingAmbassadorService(done chan struct{}) *TestingAmbassadorService {
 	return &TestingAmbassadorService{
 		done:       done,
-		attached:   make(chan struct{}, 1),
 		attaches:   make(chan *telemetry_edge.EnvoySummary, 1),
 		keepAlives: make(chan *telemetry_edge.KeepAliveRequest, 1),
 		logs:       make(chan *telemetry_edge.LogEvent, 1),
@@ -58,7 +56,6 @@ func NewTestingAmbassadorService(done chan struct{}) *TestingAmbassadorService {
 
 func (s *TestingAmbassadorService) AttachEnvoy(summary *telemetry_edge.EnvoySummary, resp telemetry_edge.TelemetryAmbassador_AttachEnvoyServer) error {
 	s.attaches <- summary
-	close(s.attached)
 	<-s.done
 	return nil
 }
@@ -163,7 +160,7 @@ func TestStandardEgressConnection_PostMetric(t *testing.T) {
 	defer cancel()
 
 	select {
-	case <-ambassadorServer.attached:
+	case <-ambassadorServer.attaches:
 		//continue
 	case <-time.After(500 * time.Millisecond):
 		t.Log("did not see attachment in time")
