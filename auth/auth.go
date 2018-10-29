@@ -22,10 +22,13 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"io/ioutil"
+	"net/url"
 )
 
+// TlsConfig is populated from the viper config key "tls"
 type TlsConfig struct {
 	Disabled bool
 	// Provided contains paths to the TLS certificates (PEM files) on the local filesystem.
@@ -33,15 +36,14 @@ type TlsConfig struct {
 	Provided *struct {
 		Cert, Key, Ca string
 	}
+	AuthService *struct {
+		Url           string
+		TokenProvider string `mapstructure:"token_provider"`
+	} `mapstructure:"auth_service"`
 }
 
-type AuthToken struct {
-	Header string
-	Value  string
-}
-
-type AuthTokenProvider interface {
-	ProvideAuthToken() (*AuthToken, error)
+type CertProvider interface {
+	ProvideCertificates(tlsConfig *TlsConfig) (*tls.Certificate, *x509.CertPool, error)
 }
 
 func LoadCertificates() (*tls.Certificate, *x509.CertPool, error) {
@@ -52,10 +54,23 @@ func LoadCertificates() (*tls.Certificate, *x509.CertPool, error) {
 		return nil, nil, errors.Wrap(err, "failed to load tls configuration")
 	}
 
-	if tlsConfig.Provided == nil {
-		return nil, nil, errors.New("missing tls.provided configuration")
+	if tlsConfig.Provided != nil {
+		provider := &PreallocatedCertProvider{}
+		return provider.ProvideCertificates(tlsConfig)
 	}
 
+	if tlsConfig.AuthService != nil {
+		provider := &AuthServiceCertProvider{}
+		return provider.ProvideCertificates(tlsConfig)
+	}
+
+	return nil, nil, errors.New("missing specific tls provider configuration")
+}
+
+type PreallocatedCertProvider struct{}
+
+func (p *PreallocatedCertProvider) ProvideCertificates(tlsConfig *TlsConfig) (*tls.Certificate, *x509.CertPool, error) {
+	log.WithField("config", tlsConfig.Provided).Debug("loading provided certificates")
 	certificate, err := tls.LoadX509KeyPair(
 		tlsConfig.Provided.Cert,
 		tlsConfig.Provided.Key,
@@ -76,5 +91,22 @@ func LoadCertificates() (*tls.Certificate, *x509.CertPool, error) {
 		return nil, nil, errors.New("failed to process CA cert")
 	}
 
+	log.WithField("config", tlsConfig.Provided).Info("successfully loaded provided certificates")
 	return &certificate, certPool, nil
+}
+
+func AppendUrlPath(baseUrlStr string, pathStr string) (string, error) {
+	baseUrl, err := url.Parse(baseUrlStr)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to parse base URL")
+	}
+
+	relUrl, err := url.Parse(pathStr)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to parse relative URL")
+	}
+
+	resolved := baseUrl.ResolveReference(relUrl)
+
+	return resolved.String(), nil
 }
