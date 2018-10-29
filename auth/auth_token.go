@@ -18,11 +18,12 @@
 
 package auth
 
-import "github.com/pkg/errors"
+import (
+	"github.com/pkg/errors"
+)
 
 type AuthToken struct {
-	Header string
-	Value  string
+	Headers map[string]string
 }
 
 type AuthTokenProvider interface {

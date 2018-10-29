@@ -31,7 +31,9 @@ type TestAuthTokenProvider struct {
 }
 
 func (p *TestAuthTokenProvider) ProvideAuthToken() (*auth.AuthToken, error) {
-	return &auth.AuthToken{Header: p.Header, Value: p.Token}, nil
+	return &auth.AuthToken{
+		Headers: map[string]string{p.Header: p.Token},
+	}, nil
 }
 
 func TestGetAuthTokenProvider_Normal(t *testing.T) {

@@ -59,7 +59,9 @@ func (p *AuthServiceCertProvider) ProvideCertificates(config *TlsConfig) (*tls.C
 		return nil, nil, errors.Wrap(err, "failed to prepare auth service request")
 	}
 
-	request.Header.Set(token.Header, token.Value)
+	for header, value := range token.Headers {
+		request.Header.Set(header, value)
+	}
 	request.Header.Set("Accept", "application/json")
 
 	client := &http.Client{}

@@ -58,10 +58,11 @@ func TestKeystoneV2AuthTokenProvider_ProvideAuthToken_Normal(t *testing.T) {
 	viper.SetConfigType("yaml")
 	err := viper.ReadConfig(strings.NewReader(fmt.Sprintf(`
 tls:
-  keystone_v2:
-    username: user1
-    apikey: abc123
-    identityServiceUrl: %s
+  token_providers:
+    keystone_v2:
+      username: user1
+      apikey: abc123
+      identityServiceUrl: %s
 `, ts.URL)))
 
 	authTokenProvider, err := auth.NewKeystoneV2AuthTokenProvider()
@@ -70,8 +71,7 @@ tls:
 	token, err := authTokenProvider.ProvideAuthToken()
 	require.NoError(t, err)
 
-	assert.Equal(t, "X-Auth-Token", token.Header)
-	assert.Equal(t, "ThisIsJustForTesting", token.Value)
+	assert.Equal(t, "ThisIsJustForTesting", token.Headers["X-Auth-Token"])
 }
 
 func TestKeystoneV2AuthTokenProvider_ProvideAuthToken_BadStatus(t *testing.T) {
@@ -94,10 +94,11 @@ func TestKeystoneV2AuthTokenProvider_ProvideAuthToken_BadStatus(t *testing.T) {
 	viper.SetConfigType("yaml")
 	err := viper.ReadConfig(strings.NewReader(fmt.Sprintf(`
 tls:
-  keystone_v2:
-    username: user1
-    apikey: abc123
-    identityServiceUrl: %s
+  token_providers:
+    keystone_v2:
+      username: user1
+      apikey: abc123
+      identityServiceUrl: %s
 `, ts.URL)))
 
 	authTokenProvider, err := auth.NewKeystoneV2AuthTokenProvider()
@@ -126,10 +127,11 @@ func TestKeystoneV2AuthTokenProvider_ProvideAuthToken_MalformedResponse(t *testi
 	viper.SetConfigType("yaml")
 	err := viper.ReadConfig(strings.NewReader(fmt.Sprintf(`
 tls:
-  keystone_v2:
-    username: user1
-    apikey: abc123
-    identityServiceUrl: %s
+  token_providers:
+    keystone_v2:
+      username: user1
+      apikey: abc123
+      identityServiceUrl: %s
 `, ts.URL)))
 
 	authTokenProvider, err := auth.NewKeystoneV2AuthTokenProvider()
@@ -170,10 +172,11 @@ func TestKeystoneV2AuthTokenProvider_ProvideAuthToken_BadLogin(t *testing.T) {
 	viper.SetConfigType("yaml")
 	err := viper.ReadConfig(strings.NewReader(fmt.Sprintf(`
 tls:
-  keystone_v2:
-    username: foo
-    apikey: bar
-    identityServiceUrl: %s
+  token_providers:
+    keystone_v2:
+      username: foo
+      apikey: bar
+      identityServiceUrl: %s
 `, ts.URL)))
 
 	authTokenProvider, err := auth.NewKeystoneV2AuthTokenProvider()
@@ -190,10 +193,11 @@ func TestKeystoneV2AuthTokenProvider_ProvideAuthToken_NoServer(t *testing.T) {
 	viper.SetConfigType("yaml")
 	err = viper.ReadConfig(strings.NewReader(fmt.Sprintf(`
 tls:
-  keystone_v2:
-    username: user1
-    apikey: abc123
-    identityServiceUrl: http://localhost:%d
+  token_providers:
+    keystone_v2:
+      username: user1
+      apikey: abc123
+      identityServiceUrl: http://localhost:%d
 `, fakePort)))
 
 	authTokenProvider, err := auth.NewKeystoneV2AuthTokenProvider()

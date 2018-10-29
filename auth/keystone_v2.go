@@ -50,7 +50,7 @@ var tokensPostBody = `{
 }`
 
 func init() {
-	viper.SetDefault("tls.keystone_v2.identityServiceUrl", "https://identity.api.rackspacecloud.com/v2.0/")
+	viper.SetDefault("tls.token_providers.keystone_v2.identityServiceUrl", "https://identity.api.rackspacecloud.com/v2.0/")
 
 	RegisterAuthTokenProvider("keystone_v2", func() (AuthTokenProvider, error) {
 		return NewKeystoneV2AuthTokenProvider()
@@ -59,7 +59,7 @@ func init() {
 
 func NewKeystoneV2AuthTokenProvider() (*KeystoneV2AuthTokenProvider, error) {
 	var config KeystoneV2Config
-	err := viper.UnmarshalKey("tls.keystone_v2", &config)
+	err := viper.UnmarshalKey("tls.token_providers.keystone_v2", &config)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal config")
 	}
@@ -122,8 +122,7 @@ func (p *KeystoneV2AuthTokenProvider) ProvideAuthToken() (*AuthToken, error) {
 	if tokenId, ok := resTokenId.(string); ok {
 		log.Debug("acquired keystone v2 authentication token")
 		return &AuthToken{
-			Header: "X-Auth-Token",
-			Value:  tokenId,
+			Headers: map[string]string{"X-Auth-Token": tokenId},
 		}, nil
 	} else {
 		return nil, errors.New("failed to locate tokenId in response json")
