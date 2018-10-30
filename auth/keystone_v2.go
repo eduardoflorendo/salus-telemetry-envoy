@@ -52,11 +52,11 @@ var tokensPostBody = `{
 func init() {
 	viper.SetDefault("tls.token_providers.keystone_v2.identityServiceUrl", "https://identity.api.rackspacecloud.com/v2.0/")
 
-	err := viper.BindEnv("tls.token_providers.keystone_v2.username", "KEYSTONE_USERNAME")
+	err := viper.BindEnv("tls.token_providers.keystone_v2.username", "ENVOY_KEYSTONE_USERNAME")
 	if err != nil {
 		log.WithError(err).Fatal("failed to bind KEYSTONE_USERNAME")
 	}
-	err = viper.BindEnv("tls.token_providers.keystone_v2.apikey", "KEYSTONE_APIKEY")
+	err = viper.BindEnv("tls.token_providers.keystone_v2.apikey", "ENVOY_KEYSTONE_APIKEY")
 	if err != nil {
 		log.WithError(err).Fatal("failed to bind KEYSTONE_APIKEY")
 	}
