@@ -1,6 +1,7 @@
 project_name: telemetry-envoy
 before:
   hooks:
+  - go generate ./telemetry_edge
   - go generate ./...
 builds:
 - binary: telemetry-envoy

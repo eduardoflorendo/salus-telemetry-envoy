@@ -105,7 +105,7 @@ func (c *StandardEgressConnection) Start(ctx context.Context, supportedAgents []
 	c.supportedAgents = supportedAgents
 
 	for {
-		backoff.RetryNotify(c.attach, backoff.WithContext(backoff.NewExponentialBackOff(), c.ctx),
+		err := backoff.RetryNotify(c.attach, backoff.WithContext(backoff.NewExponentialBackOff(), c.ctx),
 			func(err error, delay time.Duration) {
 				log.WithError(err).WithField("delay", delay).Warn("delaying until next attempt")
 
@@ -122,6 +122,9 @@ func (c *StandardEgressConnection) Start(ctx context.Context, supportedAgents []
 					}
 				}
 			})
+		if err != nil {
+			log.WithError(err).Warn("failure during retry section")
+		}
 
 		c.instanceId = c.idGenerator.Generate()
 	}
@@ -140,6 +143,7 @@ func (c *StandardEgressConnection) attach() error {
 	if err != nil {
 		return errors.Wrap(err, "failed to dial Ambassador")
 	}
+	//noinspection GoUnhandledErrorResult
 	defer conn.Close()
 
 	c.client = telemetry_edge.NewTelemetryAmbassadorClient(conn)
@@ -167,7 +171,10 @@ func (c *StandardEgressConnection) attach() error {
 	for {
 		select {
 		case <-connCtx.Done():
-			instructions.CloseSend()
+			err := instructions.CloseSend()
+			if err != nil {
+				log.WithError(err).Warn("closing send side of instructions stream")
+			}
 			return fmt.Errorf("closed")
 
 		case err := <-errChan:

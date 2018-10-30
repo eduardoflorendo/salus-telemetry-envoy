@@ -52,20 +52,27 @@ var tokensPostBody = `{
 func init() {
 	viper.SetDefault("tls.token_providers.keystone_v2.identityServiceUrl", "https://identity.api.rackspacecloud.com/v2.0/")
 
+	err := viper.BindEnv("tls.token_providers.keystone_v2.username", "KEYSTONE_USERNAME")
+	if err != nil {
+		log.WithError(err).Fatal("failed to bind KEYSTONE_USERNAME")
+	}
+	err = viper.BindEnv("tls.token_providers.keystone_v2.apikey", "KEYSTONE_APIKEY")
+	if err != nil {
+		log.WithError(err).Fatal("failed to bind KEYSTONE_APIKEY")
+	}
+
 	RegisterAuthTokenProvider("keystone_v2", func() (AuthTokenProvider, error) {
 		return NewKeystoneV2AuthTokenProvider()
 	})
 }
 
 func NewKeystoneV2AuthTokenProvider() (*KeystoneV2AuthTokenProvider, error) {
-	var config KeystoneV2Config
-	err := viper.UnmarshalKey("tls.token_providers.keystone_v2", &config)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal config")
-	}
-
 	return &KeystoneV2AuthTokenProvider{
-		config: &config,
+		config: &KeystoneV2Config{
+			IdentityServiceUrl: viper.GetString("tls.token_providers.keystone_v2.identityServiceUrl"),
+			Username:           viper.GetString("tls.token_providers.keystone_v2.username"),
+			Apikey:             viper.GetString("tls.token_providers.keystone_v2.apikey"),
+		},
 	}, nil
 }
 

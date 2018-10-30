@@ -25,6 +25,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"os"
+	"strings"
 )
 
 var (
@@ -79,6 +80,9 @@ func initConfig() {
 		viper.SetConfigName(".telemetry-envoy")
 	}
 
+	replacer := strings.NewReplacer(".", "_", "-", "_")
+	viper.SetEnvKeyReplacer(replacer)
+	viper.SetEnvPrefix("ENVOY")
 	viper.AutomaticEnv() // read in environment variables that match
 
 	// If a config file is found, read it in.
