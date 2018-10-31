@@ -11,6 +11,10 @@ snapshot:
 build:
 	go build -o telemetry-envoy .
 
+.PHONY: install
+install: test
+	go install
+
 .PHONY: generate
 generate:
 	go generate ./telemetry_edge
@@ -30,6 +34,12 @@ test: clean generate
 test-verbose: generate
 	go test -v ./...
 
+test-report-junit: generate
+	mkdir -p test-results
+	go test -v ./... 2>&1 | tee test-results/go-test.out
+	go install -mod=readonly github.com/jstemmer/go-junit-report
+	go-junit-report <test-results/go-test.out > test-results/report.xml
+
 .PHONY: coverage
 coverage: generate
 	go test -cover ./...
@@ -48,10 +58,10 @@ init-os-specific:
 else
 ifeq (${OS},Linux)
 init-os-specific:
-	sudo apt install protobuf-compiler
+	sudo apt install -y protobuf-compiler
 endif
 endif
 
 init-gotools:
-	go install github.com/golang/protobuf/protoc-gen-go
-	go install github.com/petergtz/pegomock/pegomock
+	go install -mod=readonly github.com/golang/protobuf/protoc-gen-go
+	go install -mod=readonly github.com/petergtz/pegomock/pegomock

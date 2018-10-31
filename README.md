@@ -1,3 +1,6 @@
+
+[![CircleCI branch](https://img.shields.io/circleci/project/github/racker/rmii-telemetry-envoy/master.svg)](https://circleci.com/gh/racker/rmii-telemetry-envoy)
+
 ## Development
 
 ### Environment Setup
@@ -43,22 +46,27 @@ run --config=envoy-config.yml
 
 ### Running from command-line
 
-Build the executable by running:
+Build and install the executable by running:
 
 ```bash
-make
+make install
 ```
 
 If you haven't already, clone the [telemetry-core](https://github.com/racker/rmii-telemetry-core)
 repo. For the following example, the core repo is cloned next to the envoy repo, but you can
 clone it to a location of your choosing.
 
+Ensure you have `$GOPATH/bin` in your `$PATH` in order to reference the executable installed by `make install`.
+
 Go over to the core repo's `dev-support` directory and run the built envoy from there:
 
 ```bash
 cd ../rmii-telemetry-core/dev-support
-../../rmii-telemetry-envoy/telemetry-envoy run --config=envoy-config.yml
+telemetry-envoy run --debug --config=envoy-config-provided.yml
 ```
+
+The `envoy-config-provided.yml` can be replaced with one of the other config files located there depending on
+the scenario currently running on your system.
 
 ### gRPC code generating
 

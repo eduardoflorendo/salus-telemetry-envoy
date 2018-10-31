@@ -114,6 +114,7 @@ func (t *TelegrafJson) handleConnection(ctx context.Context, conn net.Conn) {
 			if err != nil {
 				log.WithError(err).WithField("content", string(content)).Warn("failed to decode telegraf json metric")
 			} else {
+				log.WithField("m", m).Debug("unmarshaled metric line")
 				t.metrics <- &m
 			}
 		}
@@ -125,6 +126,7 @@ func (t *TelegrafJson) handleConnection(ctx context.Context, conn net.Conn) {
 }
 
 func (t *TelegrafJson) processMetric(m *telegrafJsonMetric) {
+	log.WithField("m", m).Debug("processing metric")
 	fvalues := make(map[string]float64)
 	svalues := make(map[string]string)
 
@@ -149,5 +151,6 @@ func (t *TelegrafJson) processMetric(m *telegrafJsonMetric) {
 		},
 	}
 
+	log.WithField("posted", outMetric).Debug("posting metric")
 	t.egressConn.PostMetric(outMetric)
 }
