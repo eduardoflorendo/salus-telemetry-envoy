@@ -11,6 +11,10 @@ snapshot:
 build:
 	go build -o telemetry-envoy .
 
+.PHONY: install
+install: test
+	go install
+
 .PHONY: generate
 generate:
 	go generate ./telemetry_edge
