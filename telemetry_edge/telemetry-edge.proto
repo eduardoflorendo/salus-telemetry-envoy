@@ -62,8 +62,9 @@ message ConfigurationOp {
     string id = 1;
     string revision = 2;
     enum Type {
-        MODIFY = 0;
-        REMOVE = 1;
+        CREATE = 0;
+        MODIFY = 1;
+        REMOVE = 2;
     }
     Type type = 3;
     string content = 4;
