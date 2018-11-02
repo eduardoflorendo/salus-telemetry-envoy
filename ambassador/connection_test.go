@@ -99,7 +99,7 @@ func TestStandardEgressConnection_Start(t *testing.T) {
 	idGenerator := NewMockIdGenerator()
 	pegomock.When(idGenerator.Generate()).ThenReturn("id-1")
 
-	mockAgentsRunner := NewMockAgentsRunner()
+	mockAgentsRunner := NewMockRouter()
 	viper.Set(config.AmbassadorAddress, ambassadorAddr)
 	viper.Set("tls.disabled", true)
 	viper.Set("ambassador.keepAliveInterval", 1*time.Millisecond)
@@ -149,7 +149,7 @@ func TestStandardEgressConnection_PostMetric(t *testing.T) {
 	idGenerator := NewMockIdGenerator()
 	pegomock.When(idGenerator.Generate()).ThenReturn("id-1")
 
-	mockAgentsRunner := NewMockAgentsRunner()
+	mockAgentsRunner := NewMockRouter()
 	viper.Set(config.AmbassadorAddress, ambassadorAddr)
 	viper.Set("tls.disabled", true)
 	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, idGenerator)

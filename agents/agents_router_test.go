@@ -90,7 +90,7 @@ func TestAgentsRunner_ProcessInstall(t *testing.T) {
 
 			agentsRunner.ProcessInstall(install)
 
-			mockSpecificAgentRunner.VerifyWasCalledOnce().EnsureRunning(matchers.AnyContextContext())
+			mockSpecificAgentRunner.VerifyWasCalledOnce().EnsureRunningState(matchers.AnyContextContext())
 
 			_, exeFilename := path.Split(tt.exe)
 			assert.FileExists(t, path.Join(dataPath, "agents", tt.agentType.String(), tt.version, "bin", exeFilename))

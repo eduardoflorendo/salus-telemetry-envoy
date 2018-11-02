@@ -26,10 +26,8 @@ import (
 	"github.com/racker/telemetry-envoy/telemetry_edge"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"io/ioutil"
 	"net"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"text/template"
@@ -57,7 +55,7 @@ output.logstash:
 type FilebeatRunner struct {
 	LumberjackBind string
 	basePath       string
-	running        *AgentRunningInstance
+	running        *AgentRunningContext
 	commandHandler CommandHandler
 }
 
@@ -75,55 +73,45 @@ func (fbr *FilebeatRunner) SetCommandHandler(handler CommandHandler) {
 	fbr.commandHandler = handler
 }
 
-func (fbr *FilebeatRunner) EnsureRunning(ctx context.Context) {
-	log.Debug("ensuring filebeat is running")
+func (fbr *FilebeatRunner) EnsureRunningState(ctx context.Context) {
+	log.Debug("ensuring filebeat is runnable")
+
+	if !fbr.hasRequiredPaths() {
+		log.Debug("filebeat not runnable due to some missing paths and files")
+		fbr.commandHandler.Stop(fbr.running)
+		return
+	}
 
 	if fbr.running.IsRunning() {
 		log.Debug("filebeat is already running")
 		return
 	}
 
-	if !fbr.hasRequiredPaths() {
-		log.Debug("filebeat not ready to launch due to some missing paths and files")
-		return
-	}
-
-	cmdCtx, cancel := context.WithCancel(ctx)
-
-	cmd := exec.CommandContext(cmdCtx,
-		fbr.exePath(),
+	runningContext := fbr.commandHandler.CreateContext(ctx,
+		telemetry_edge.AgentType_FILEBEAT,
+		fbr.exePath(), fbr.basePath,
 		"run",
 		"--path.config", "./",
 		"--path.data", "data",
 		"--path.logs", "logs")
-	cmd.Dir = fbr.basePath
 
-	err := fbr.commandHandler.StartAgentCommand(cmdCtx, cmd, telemetry_edge.AgentType_FILEBEAT, "", 0)
+	err := fbr.commandHandler.StartAgentCommand(runningContext, telemetry_edge.AgentType_FILEBEAT, "", 0)
 	if err != nil {
 		log.WithError(err).
 			WithField("agentType", telemetry_edge.AgentType_FILEBEAT).
 			Warn("failed to start agent")
-		cancel()
 		return
 	}
 
-	go fbr.commandHandler.WaitOnAgentCommand(ctx, fbr, cmd)
+	go fbr.commandHandler.WaitOnAgentCommand(ctx, fbr, runningContext)
 
-	runner := &AgentRunningInstance{
-		ctx:    cmdCtx,
-		cancel: cancel,
-		cmd:    cmd,
-	}
-	fbr.running = runner
+	fbr.running = runningContext
 	log.Info("started filebeat")
 }
 
 func (fbr *FilebeatRunner) Stop() {
-	if fbr.running.IsRunning() {
-		log.Debug("stopping filebeat")
-		fbr.running.cancel()
-		fbr.running = nil
-	}
+	fbr.commandHandler.Stop(fbr.running)
+	fbr.running = nil
 }
 
 func (fbr *FilebeatRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure) error {
@@ -141,18 +129,19 @@ func (fbr *FilebeatRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstruct
 		}
 	}
 
+	applied := 0
 	for _, op := range configure.GetOperations() {
 		log.WithField("op", op).Debug("processing filebeat config operation")
 
 		configInstancePath := filepath.Join(configsPath, fmt.Sprintf("%s.yml", op.GetId()))
 
-		switch op.GetType() {
-		case telemetry_edge.ConfigurationOp_MODIFY:
-			err := ioutil.WriteFile(configInstancePath, []byte(op.GetContent()), configFilePerms)
-			if err != nil {
-				log.WithField("op", op).Warn("failed to process filebeat config operation")
-			}
+		if handleContentConfigurationOp(op, configInstancePath) {
+			applied++
 		}
+	}
+
+	if applied == 0 {
+		return &noAppliedConfigsError{}
 	}
 
 	return nil

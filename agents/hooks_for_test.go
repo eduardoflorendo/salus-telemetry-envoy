@@ -23,6 +23,9 @@ import (
 	"time"
 )
 
+// NOTE this file is specifically declared in the agents package, but only compiled during testing due
+// to the file name. As such, it is used to enable unit testing access to package-private aspects
+
 func RegisterAgentRunnerForTesting(agentType telemetry_edge.AgentType, runner SpecificAgentRunner) {
 	registerSpecificAgentRunner(agentType, runner)
 }
@@ -33,4 +36,12 @@ func UnregisterAllAgentRunners() {
 
 func SetAgentRestartDelay(delay time.Duration) {
 	agentRestartDelay = delay
+}
+
+func RunAgentRunningContext(ctx *AgentRunningContext) error {
+	return ctx.cmd.Run()
+}
+
+func CreateNoAppliedConfigsError() error {
+	return &noAppliedConfigsError{}
 }

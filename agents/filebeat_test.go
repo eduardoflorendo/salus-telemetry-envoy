@@ -29,49 +29,62 @@ import (
 	"testing"
 )
 
-func TestFilebeatRunner_ProcessConfig(t *testing.T) {
-
-	dataPath, err := ioutil.TempDir("", "filebeat_test")
-	require.NoError(t, err)
-	defer os.RemoveAll(dataPath)
-
-	runner := &agents.FilebeatRunner{}
-	runner.Load(dataPath)
-	runner.LumberjackBind = "localhost:5555"
-
-	configure := &telemetry_edge.EnvoyInstructionConfigure{
-		AgentType: telemetry_edge.AgentType_FILEBEAT,
-		Operations: []*telemetry_edge.ConfigurationOp{
-			{
-				Id:      "a-b-c",
-				Type:    telemetry_edge.ConfigurationOp_MODIFY,
-				Content: "configuration content",
-			},
-		},
+func TestFilebeatRunner_ProcessConfig_CreateModify(t *testing.T) {
+	tests := []struct {
+		opType telemetry_edge.ConfigurationOp_Type
+	}{
+		{opType: telemetry_edge.ConfigurationOp_CREATE},
+		{opType: telemetry_edge.ConfigurationOp_MODIFY},
 	}
-	runner.ProcessConfig(configure)
 
-	var files, mainConfigs, instanceConfigs int
-	filepath.Walk(dataPath, func(path string, info os.FileInfo, err error) error {
-		files++
-		if filepath.Base(path) == "filebeat.yml" {
-			mainConfigs++
-			content, err := ioutil.ReadFile(path)
+	for _, tt := range tests {
+		t.Run(tt.opType.String(), func(t *testing.T) {
+			dataPath, err := ioutil.TempDir("", "filebeat_test")
+			require.NoError(t, err)
+			defer os.RemoveAll(dataPath)
+
+			runner := &agents.FilebeatRunner{}
+			err = runner.Load(dataPath)
+			require.NoError(t, err)
+			runner.LumberjackBind = "localhost:5555"
+
+			configure := &telemetry_edge.EnvoyInstructionConfigure{
+				AgentType: telemetry_edge.AgentType_FILEBEAT,
+				Operations: []*telemetry_edge.ConfigurationOp{
+					{
+						Id:      "a-b-c",
+						Type:    tt.opType,
+						Content: "configuration content",
+					},
+				},
+			}
+			err = runner.ProcessConfig(configure)
 			require.NoError(t, err)
 
-			assert.Contains(t, string(content), "path: config.d/*.yml")
-			assert.Contains(t, string(content), "hosts: [\"localhost:5555\"]")
-		} else if filepath.Base(path) == "a-b-c.yml" {
-			instanceConfigs++
-			content, err := ioutil.ReadFile(path)
-			require.NoError(t, err)
-			assert.Equal(t, "configuration content", string(content))
+			var files, mainConfigs, instanceConfigs int
+			err = filepath.Walk(dataPath, func(path string, info os.FileInfo, err error) error {
+				files++
+				if filepath.Base(path) == "filebeat.yml" {
+					mainConfigs++
+					content, err := ioutil.ReadFile(path)
+					require.NoError(t, err)
 
-			assert.Equal(t, "config.d", filepath.Base(filepath.Dir(path)))
-		}
-		return nil
-	})
-	assert.NotZero(t, files)
-	assert.Equal(t, 1, mainConfigs)
-	assert.Equal(t, 1, instanceConfigs)
+					assert.Contains(t, string(content), "path: config.d/*.yml")
+					assert.Contains(t, string(content), "hosts: [\"localhost:5555\"]")
+				} else if filepath.Base(path) == "a-b-c.yml" {
+					instanceConfigs++
+					content, err := ioutil.ReadFile(path)
+					require.NoError(t, err)
+					assert.Equal(t, "configuration content", string(content))
+
+					assert.Equal(t, "config.d", filepath.Base(filepath.Dir(path)))
+				}
+				return nil
+			})
+			require.NoError(t, err)
+			assert.NotZero(t, files)
+			assert.Equal(t, 1, mainConfigs)
+			assert.Equal(t, 1, instanceConfigs)
+		})
+	}
 }

@@ -16,7 +16,20 @@
  *
  */
 
-//go:generate pegomock generate -m github.com/racker/telemetry-envoy/agents Router
-//go:generate pegomock generate -m github.com/racker/telemetry-envoy/ambassador IdGenerator
+package agents_test
 
-package ambassador_test
+import (
+	"github.com/pkg/errors"
+	"github.com/racker/telemetry-envoy/agents"
+	"github.com/stretchr/testify/assert"
+	"testing"
+)
+
+func TestNoAppliedConfigs(t *testing.T) {
+	var err error
+	err = agents.CreateNoAppliedConfigsError()
+	assert.True(t, agents.IsNoAppliedConfigs(err))
+
+	assert.False(t, agents.IsNoAppliedConfigs(errors.New("not ours")))
+	assert.False(t, agents.IsNoAppliedConfigs(nil))
+}
