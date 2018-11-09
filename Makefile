@@ -10,7 +10,7 @@ snapshot:
 
 .PHONY: release
 release:
-    goreleaser release --rm-dist
+	goreleaser release --rm-dist
 
 .PHONY: build
 build:
