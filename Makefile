@@ -8,6 +8,10 @@ default: generate build
 snapshot:
 	goreleaser release --rm-dist --snapshot
 
+.PHONY: release
+release:
+    goreleaser release --rm-dist
+
 .PHONY: build
 build:
 	go build -o telemetry-envoy .
