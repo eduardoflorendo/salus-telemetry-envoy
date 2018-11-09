@@ -93,3 +93,15 @@ developing on MacOS, use
 ```
 make snapshot
 ```
+
+### Release packages
+
+To perform a new release of the packages you must first push a new tag to github and then run `make release`.  For example:
+
+```
+git tag -a 0.1.1 -m 'Testing goreleaser'
+git push --tags
+make release
+``` 
+
+The packages should now be available at https://github.com/racker/rmii-telemetry-envoy/releases.
