@@ -33,8 +33,6 @@ import (
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"os"
-	"runtime"
 	"strings"
 	"time"
 )
@@ -73,6 +71,7 @@ type StandardEgressConnection struct {
 	certificate       *tls.Certificate
 	supportedAgents   []telemetry_edge.AgentType
 	idGenerator       IdGenerator
+	labels            map[string]string
 }
 
 func init() {
@@ -93,6 +92,11 @@ func NewEgressConnection(agentsRunner agents.Router, idGenerator IdGenerator) (E
 
 	var err error
 	connection.grpcTlsDialOption, err = connection.loadTlsDialOption()
+	if err != nil {
+		return nil, err
+	}
+
+	connection.labels, err = config.ComputeLabels()
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +158,7 @@ func (c *StandardEgressConnection) attach() error {
 	envoySummary := &telemetry_edge.EnvoySummary{
 		InstanceId:      c.instanceId,
 		SupportedAgents: c.supportedAgents,
-		Labels:          c.computeLabels(),
+		Labels:          c.labels,
 	}
 	log.WithField("summary", envoySummary).Info("attaching")
 
@@ -229,22 +233,6 @@ func (c *StandardEgressConnection) sendKeepAlives(ctx context.Context, errChan c
 			return
 		}
 	}
-}
-
-func (c *StandardEgressConnection) computeLabels() map[string]string {
-	labels := make(map[string]string)
-
-	labels["os"] = runtime.GOOS
-	labels["arch"] = runtime.GOARCH
-
-	hostname, err := os.Hostname()
-	if err == nil {
-		labels["hostname"] = hostname
-	} else {
-		log.WithError(err).Warn("unable to determine hostname")
-	}
-
-	return labels
 }
 
 func (c *StandardEgressConnection) loadTlsDialOption() (grpc.DialOption, error) {
