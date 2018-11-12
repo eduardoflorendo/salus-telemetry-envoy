@@ -26,10 +26,8 @@ import (
 	"github.com/racker/telemetry-envoy/telemetry_edge"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"io/ioutil"
 	"net"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"syscall"
@@ -64,7 +62,7 @@ type TelegrafRunner struct {
 	ingestHost     string
 	ingestPort     string
 	basePath       string
-	running        *AgentRunningInstance
+	running        *AgentRunningContext
 	commandHandler CommandHandler
 }
 
@@ -109,65 +107,53 @@ func (tr *TelegrafRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructi
 
 		configInstancePath := filepath.Join(configsPath, fmt.Sprintf("%s.conf", op.GetId()))
 
-		switch op.GetType() {
-		case telemetry_edge.ConfigurationOp_MODIFY:
-			err := ioutil.WriteFile(configInstancePath, []byte(op.GetContent()), configFilePerms)
-			if err != nil {
-				log.WithField("op", op).Warn("failed to process telegraf config operation")
-			} else {
-				applied++
-			}
+		if handleContentConfigurationOp(op, configInstancePath) {
+			applied++
 		}
 	}
 
-	if applied > 0 {
-		tr.handleConfigReload()
+	if applied == 0 {
+		return &noAppliedConfigsError{}
 	}
 
 	return nil
 }
 
-func (tr *TelegrafRunner) EnsureRunning(ctx context.Context) {
-	log.Debug("ensuring telegraf is running")
-
-	if tr.running.IsRunning() {
-		log.Debug("telegraf is already running")
-		return
-	}
+func (tr *TelegrafRunner) EnsureRunningState(ctx context.Context, applyConfigs bool) {
+	log.Debug("ensuring telegraf is in correct running state")
 
 	if !tr.hasRequiredPaths() {
-		log.Debug("telegraf not ready to launch due to some missing paths and files")
+		log.Debug("telegraf not runnable due to some missing paths and files, stopping if needed")
+		tr.commandHandler.Stop(tr.running)
 		return
 	}
 
-	cmdCtx, cancel := context.WithCancel(ctx)
+	if tr.running.IsRunning() {
+		log.Debug("telegraf is already running, signaling config reload")
+		tr.handleConfigReload()
+		return
+	}
 
-	cmd := exec.CommandContext(cmdCtx,
-		tr.exePath(),
+	runningContext := tr.commandHandler.CreateContext(ctx,
+		telemetry_edge.AgentType_TELEGRAF,
+		tr.exePath(), tr.basePath,
 		"--config", telegrafMainConfigFilename,
 		"--config-directory", configsDirSubpath)
-	cmd.Dir = tr.basePath
 
-	err := tr.commandHandler.StartAgentCommand(cmdCtx, cmd,
+	err := tr.commandHandler.StartAgentCommand(runningContext,
 		telemetry_edge.AgentType_TELEGRAF,
 		"Agent Config:", telegrafStartupDuration)
 	if err != nil {
 		log.WithError(err).
 			WithField("agentType", telemetry_edge.AgentType_TELEGRAF).
 			Warn("failed to start agent")
-		cancel()
 		return
 	}
 
-	go tr.commandHandler.WaitOnAgentCommand(ctx, tr, cmd)
+	go tr.commandHandler.WaitOnAgentCommand(ctx, tr, runningContext)
 
-	runner := &AgentRunningInstance{
-		ctx:    cmdCtx,
-		cancel: cancel,
-		cmd:    cmd,
-	}
-	tr.running = runner
-	log.WithField("pid", cmd.Process.Pid).
+	tr.running = runningContext
+	log.WithField("pid", runningContext.Pid()).
 		WithField("agentType", telemetry_edge.AgentType_FILEBEAT).
 		Info("started agent")
 }
@@ -178,11 +164,8 @@ func (tr *TelegrafRunner) exePath() string {
 }
 
 func (tr *TelegrafRunner) Stop() {
-	if tr.running.IsRunning() {
-		log.Debug("stopping telegraf")
-		tr.running.cancel()
-		tr.running = nil
-	}
+	tr.commandHandler.Stop(tr.running)
+	tr.running = nil
 }
 
 func (tr *TelegrafRunner) createMainConfig(mainConfigPath string) error {
@@ -190,6 +173,7 @@ func (tr *TelegrafRunner) createMainConfig(mainConfigPath string) error {
 	if err != nil {
 		return errors.Wrap(err, "unable to open main telegraf config file")
 	}
+	//noinspection GoUnhandledErrorResult
 	defer file.Close()
 
 	data := &telegrafMainConfigData{
@@ -206,9 +190,9 @@ func (tr *TelegrafRunner) createMainConfig(mainConfigPath string) error {
 }
 
 func (tr *TelegrafRunner) handleConfigReload() {
-	if tr.running.IsRunning() {
-		log.Debug("sending HUP signal to telegraf")
-		tr.running.cmd.Process.Signal(syscall.SIGHUP)
+	if err := tr.commandHandler.Signal(tr.running, syscall.SIGHUP); err != nil {
+		log.WithError(err).WithField("pid", tr.running.Pid()).
+			Warn("failed to signal agent process")
 	}
 }
 
@@ -230,6 +214,7 @@ func (tr *TelegrafRunner) hasRequiredPaths() bool {
 		log.WithError(err).Warn("unable to open configs directory for listing")
 		return false
 	}
+	//noinspection GoUnhandledErrorResult
 	defer configsDir.Close()
 
 	names, err := configsDir.Readdirnames(0)

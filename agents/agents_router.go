@@ -29,14 +29,14 @@ import (
 	"path/filepath"
 )
 
-type StandardAgentsRunner struct {
+type StandardAgentsRouter struct {
 	DataPath string
 
 	ctx context.Context
 }
 
-func NewAgentsRunner() (AgentsRunner, error) {
-	ar := &StandardAgentsRunner{
+func NewAgentsRunner() (Router, error) {
+	ar := &StandardAgentsRouter{
 		DataPath: viper.GetString("agents.dataPath"),
 	}
 
@@ -58,7 +58,7 @@ func NewAgentsRunner() (AgentsRunner, error) {
 	return ar, nil
 }
 
-func (ar *StandardAgentsRunner) Start(ctx context.Context) {
+func (ar *StandardAgentsRouter) Start(ctx context.Context) {
 	ar.ctx = ctx
 
 	for {
@@ -73,7 +73,7 @@ func (ar *StandardAgentsRunner) Start(ctx context.Context) {
 	}
 }
 
-func (ar *StandardAgentsRunner) ProcessInstall(install *telemetry_edge.EnvoyInstructionInstall) {
+func (ar *StandardAgentsRouter) ProcessInstall(install *telemetry_edge.EnvoyInstructionInstall) {
 	log.WithField("install", install).Debug("processing install instruction")
 
 	agentType := install.Agent.Type
@@ -122,7 +122,7 @@ func (ar *StandardAgentsRunner) ProcessInstall(install *telemetry_edge.EnvoyInst
 			return
 		}
 
-		specificAgentRunners[agentType].EnsureRunning(ar.ctx)
+		specificAgentRunners[agentType].EnsureRunningState(ar.ctx, false)
 
 		log.WithFields(log.Fields{
 			"path":    abs,
@@ -136,12 +136,12 @@ func (ar *StandardAgentsRunner) ProcessInstall(install *telemetry_edge.EnvoyInst
 			"version": agentVersion,
 		}).Debug("agent already installed")
 
-		specificAgentRunners[agentType].EnsureRunning(ar.ctx)
+		specificAgentRunners[agentType].EnsureRunningState(ar.ctx, false)
 
 	}
 }
 
-func (ar *StandardAgentsRunner) ProcessConfigure(configure *telemetry_edge.EnvoyInstructionConfigure) {
+func (ar *StandardAgentsRouter) ProcessConfigure(configure *telemetry_edge.EnvoyInstructionConfigure) {
 	log.WithField("instruction", configure).Debug("processing configure instruction")
 
 	agentType := configure.GetAgentType()
@@ -149,16 +149,20 @@ func (ar *StandardAgentsRunner) ProcessConfigure(configure *telemetry_edge.Envoy
 
 		err := specificRunner.ProcessConfig(configure)
 		if err != nil {
-			log.WithError(err).Warn("failed to process agent configuration")
+			if IsNoAppliedConfigs(err) {
+				log.Warn("no configuration was applied")
+			} else {
+				log.WithError(err).Warn("failed to process agent configuration")
+			}
 		} else {
-			specificRunner.EnsureRunning(ar.ctx)
+			specificRunner.EnsureRunningState(ar.ctx, true)
 		}
 	} else {
 		log.WithField("type", configure.GetAgentType()).Warn("unable to configure unknown agent type")
 	}
 }
 
-func (ar *StandardAgentsRunner) PurgeAgentConfigs() {
+func (ar *StandardAgentsRouter) PurgeAgentConfigs() {
 	for agentType := range specificAgentRunners {
 		configsPath := path.Join(ar.DataPath, agentsSubpath, agentType.String(), configsDirSubpath)
 		log.WithField("path", configsPath).Debug("purging agent config directory")

@@ -27,17 +27,22 @@ import (
 	"io"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 )
 
+// CommandHandler abstracts access to an agent's process and managing its lifecycle and output
 type CommandHandler interface {
+	CreateContext(ctx context.Context, agentType telemetry_edge.AgentType, cmdName string, workingDir string, arg ...string) *AgentRunningContext
 	// StartAgentCommand will start the given command and optionally block until a specific phrase
 	// is observed as given by the waitFor argument.
 	// It will also setup "forwarding" of the command's stdout/err to logrus
-	StartAgentCommand(cmdCtx context.Context, cmd *exec.Cmd, agentType telemetry_edge.AgentType, waitFor string, waitForDuration time.Duration) error
+	StartAgentCommand(runningContext *AgentRunningContext, agentType telemetry_edge.AgentType, waitFor string, waitForDuration time.Duration) error
 	// WaitOnAgentCommand should be ran as a goroutine to watch for the agent process to end prematurely.
-	// It will take care of restarting the agent via the SpecificAgentRunner's EnsureRunning function.
-	WaitOnAgentCommand(ctx context.Context, agentRunner SpecificAgentRunner, cmd *exec.Cmd)
+	// It will take care of restarting the agent via the SpecificAgentRunner's EnsureRunningState function.
+	WaitOnAgentCommand(ctx context.Context, agentRunner SpecificAgentRunner, runningContext *AgentRunningContext)
+	Signal(runningContext *AgentRunningContext, signal syscall.Signal) error
+	Stop(runningContext *AgentRunningContext)
 }
 
 type StandardCommandHandler struct{}
@@ -46,7 +51,24 @@ func NewCommandHandler() CommandHandler {
 	return &StandardCommandHandler{}
 }
 
-func (h *StandardCommandHandler) StartAgentCommand(cmdCtx context.Context, cmd *exec.Cmd, agentType telemetry_edge.AgentType, waitFor string, waitForDuration time.Duration) error {
+func (h *StandardCommandHandler) CreateContext(ctx context.Context, agentType telemetry_edge.AgentType, cmdName string, workingDir string, arg ...string) *AgentRunningContext {
+	cmdCtx, cancel := context.WithCancel(ctx)
+
+	cmd := exec.CommandContext(cmdCtx, cmdName, arg...)
+	cmd.Dir = workingDir
+
+	return &AgentRunningContext{
+		agentType: agentType,
+		ctx:       cmdCtx,
+		cancel:    cancel,
+		cmd:       cmd,
+	}
+}
+
+func (h *StandardCommandHandler) StartAgentCommand(runningContext *AgentRunningContext, agentType telemetry_edge.AgentType, waitFor string, waitForDuration time.Duration) error {
+	cmdCtx := runningContext.ctx
+	cmd := runningContext.cmd
+
 	waitForChan, err := h.setupCommandLogging(cmdCtx, agentType, cmd, waitFor)
 	if err != nil {
 		return errors.New("logging and watching command output")
@@ -73,25 +95,38 @@ func (h *StandardCommandHandler) StartAgentCommand(cmdCtx context.Context, cmd *
 	}
 }
 
-func (*StandardCommandHandler) WaitOnAgentCommand(ctx context.Context, agentRunner SpecificAgentRunner, cmd *exec.Cmd) {
-	err := cmd.Wait()
+func (h *StandardCommandHandler) WaitOnAgentCommand(ctx context.Context, agentRunner SpecificAgentRunner, runningContext *AgentRunningContext) {
+	err := runningContext.cmd.Wait()
 	if err != nil {
 		log.WithError(err).
-			WithField("agentType", telemetry_edge.AgentType_FILEBEAT).
+			WithField("agentType", runningContext.agentType).
 			Warn("agent exited abnormally")
 	} else {
 		log.
-			WithField("agentType", telemetry_edge.AgentType_FILEBEAT).
+			WithField("agentType", runningContext.agentType).
 			Info("agent exited successfully")
 	}
+	runningContext.cmd = nil
 
-	agentRunner.Stop()
-	log.
-		WithField("agentType", telemetry_edge.AgentType_FILEBEAT).
-		Info("scheduling agent restart")
-	time.AfterFunc(agentRestartDelay, func() {
-		agentRunner.EnsureRunning(ctx)
-	})
+	if !runningContext.stopping {
+		h.Stop(runningContext)
+		log.
+			WithField("agentType", runningContext.agentType).
+			Info("scheduling agent restart")
+		time.AfterFunc(agentRestartDelay, func() {
+			agentRunner.EnsureRunningState(ctx, false)
+		})
+	}
+}
+
+func (h *StandardCommandHandler) Signal(runningContext *AgentRunningContext, signal syscall.Signal) error {
+	if runningContext.IsRunning() {
+		log.WithField("agentType", runningContext.agentType).Debug("sending HUP signal to agent")
+
+		return runningContext.cmd.Process.Signal(signal)
+	} else {
+		return nil
+	}
 }
 
 func (h *StandardCommandHandler) setupCommandLogging(ctx context.Context, agentType telemetry_edge.AgentType, cmd *exec.Cmd, waitFor string) (<-chan bool, error) {
@@ -118,6 +153,7 @@ func (h *StandardCommandHandler) setupCommandLogging(ctx context.Context, agentT
 
 func (*StandardCommandHandler) handleCommandOutputPipe(ctx context.Context, outputType string, stdoutPipe io.ReadCloser, agentType telemetry_edge.AgentType, waitFor string, waitForChan chan bool) {
 	stdoutReader := bufio.NewReader(stdoutPipe)
+	//noinspection GoUnhandledErrorResult
 	defer stdoutPipe.Close()
 	defer log.
 		WithField("agentType", agentType).
@@ -146,5 +182,35 @@ func (*StandardCommandHandler) handleCommandOutputPipe(ctx context.Context, outp
 				checkingWaitFor = false
 			}
 		}
+	}
+}
+
+func (*StandardCommandHandler) Stop(runningContext *AgentRunningContext) {
+	if runningContext.IsRunning() {
+		log.WithField("agentType", runningContext.agentType).Debug("stopping agent")
+		runningContext.stopping = true
+		runningContext.cancel()
+	}
+}
+
+// AgentRunningContext encapsulates the state of a running agent process
+// This should be created using CommandHandler's CreateContext
+type AgentRunningContext struct {
+	agentType telemetry_edge.AgentType
+	ctx       context.Context
+	cancel    context.CancelFunc
+	cmd       *exec.Cmd
+	stopping  bool
+}
+
+func (c *AgentRunningContext) IsRunning() bool {
+	return c != nil && c.cmd != nil && (c.cmd.ProcessState == nil || !c.cmd.ProcessState.Exited())
+}
+
+func (c *AgentRunningContext) Pid() int {
+	if c.IsRunning() {
+		return c.cmd.Process.Pid
+	} else {
+		return -1
 	}
 }

@@ -68,7 +68,7 @@ type StandardEgressConnection struct {
 	client            telemetry_edge.TelemetryAmbassadorClient
 	instanceId        string
 	ctx               context.Context
-	agentsRunner      agents.AgentsRunner
+	agentsRunner      agents.Router
 	grpcTlsDialOption grpc.DialOption
 	certificate       *tls.Certificate
 	supportedAgents   []telemetry_edge.AgentType
@@ -81,7 +81,7 @@ func init() {
 	viper.SetDefault("ambassador.keepAliveInterval", 10*time.Second)
 }
 
-func NewEgressConnection(agentsRunner agents.AgentsRunner, idGenerator IdGenerator) (EgressConnection, error) {
+func NewEgressConnection(agentsRunner agents.Router, idGenerator IdGenerator) (EgressConnection, error) {
 	connection := &StandardEgressConnection{
 		Address:           viper.GetString(config.AmbassadorAddress),
 		TlsDisabled:       viper.GetBool("tls.disabled"),

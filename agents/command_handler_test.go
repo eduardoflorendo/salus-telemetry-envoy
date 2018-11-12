@@ -30,7 +30,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
 	"strings"
 	"testing"
@@ -41,20 +40,19 @@ func TestStandardCommandHandler_StartAgentCommand(t *testing.T) {
 	var logBuffer bytes.Buffer
 	log.SetOutput(&logBuffer)
 
-	dataPath, err := ioutil.TempDir("", "test_agents")
+	dataPath, err := ioutil.TempDir("", "TestStandardCommandHandler_StartAgentCommand")
 	require.NoError(t, err)
 	defer os.RemoveAll(dataPath)
 
-	cmdCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	markerPath := path.Join(dataPath, "marker")
-	cmd := exec.CommandContext(cmdCtx, "./telegraf", markerPath)
-	cmd.Dir = "testdata"
-
 	commandHandler := agents.NewCommandHandler()
-	err = commandHandler.StartAgentCommand(cmdCtx, cmd, telemetry_edge.AgentType_TELEGRAF, "Agent Config:", 1*time.Second)
+
+	runningContext := commandHandler.CreateContext(context.Background(), telemetry_edge.AgentType_TELEGRAF,
+		"./telegraf", "testdata", markerPath)
+
+	err = commandHandler.StartAgentCommand(runningContext, telemetry_edge.AgentType_TELEGRAF, "Agent Config:", 1*time.Second)
 	require.NoError(t, err)
+	defer commandHandler.Stop(runningContext)
 
 	assert.FileExists(t, markerPath)
 
@@ -66,19 +64,17 @@ func TestStandardCommandHandler_StartAgentCommand_NoWaitFor(t *testing.T) {
 	var logBuffer bytes.Buffer
 	log.SetOutput(&logBuffer)
 
-	dataPath, err := ioutil.TempDir("", "test_agents")
+	dataPath, err := ioutil.TempDir("", "TestStandardCommandHandler_StartAgentCommand_NoWaitFor")
 	require.NoError(t, err)
 	defer os.RemoveAll(dataPath)
 
-	cmdCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	markerPath := path.Join(dataPath, "marker")
-	cmd := exec.CommandContext(cmdCtx, "./filebeat", markerPath)
-	cmd.Dir = "testdata"
-
 	commandHandler := agents.NewCommandHandler()
-	err = commandHandler.StartAgentCommand(cmdCtx, cmd, telemetry_edge.AgentType_FILEBEAT, "", 0)
+
+	runningContext := commandHandler.CreateContext(context.Background(), telemetry_edge.AgentType_FILEBEAT,
+		"./filebeat", "testdata", markerPath)
+
+	err = commandHandler.StartAgentCommand(runningContext, telemetry_edge.AgentType_FILEBEAT, "", 0)
 	require.NoError(t, err)
 
 	sawMarker := make(chan struct{})
@@ -112,18 +108,16 @@ func TestStandardCommandHandler_WaitOnAgentCommand(t *testing.T) {
 	ctx := context.Background()
 	agentRunner := NewMockSpecificAgentRunner()
 
-	cmdCtx, _ := context.WithCancel(ctx)
+	runningContext := commandHandler.CreateContext(context.Background(), telemetry_edge.AgentType_FILEBEAT,
+		"./sleep_a_little", "testdata")
 
-	cmd := exec.CommandContext(cmdCtx, "./sleep_a_little")
-	cmd.Dir = "testdata"
+	err := agents.RunAgentRunningContext(runningContext)
+	require.NoError(t, err)
 
-	cmd.Run()
+	commandHandler.WaitOnAgentCommand(ctx, agentRunner, runningContext)
 
-	commandHandler.WaitOnAgentCommand(ctx, agentRunner, cmd)
-
-	// allow for agent restart delay and call to EnsureRunning
+	// allow for agent restart delay and call to EnsureRunningState
 	time.Sleep(10 * time.Millisecond)
 
-	agentRunner.VerifyWasCalledOnce().Stop()
-	agentRunner.VerifyWasCalledOnce().EnsureRunning(matchers.AnyContextContext())
+	agentRunner.VerifyWasCalledOnce().EnsureRunningState(matchers.AnyContextContext(), pegomock.EqBool(false))
 }

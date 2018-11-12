@@ -41,8 +41,11 @@ to be the `dev-support` directory of the `telemetry-core` project.
 Add the following to the "Program arguments":
 
 ```
-run --config=envoy-config.yml
+run --config=envoy-config-provided.yml
 ```
+
+The `envoy-config-provided.yml` can be replaced with one of the other config files located there depending on
+the scenario currently running on your system.
 
 ### Running from command-line
 
