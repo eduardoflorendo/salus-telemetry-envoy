@@ -73,7 +73,7 @@ func (fbr *FilebeatRunner) SetCommandHandler(handler CommandHandler) {
 	fbr.commandHandler = handler
 }
 
-func (fbr *FilebeatRunner) EnsureRunningState(ctx context.Context) {
+func (fbr *FilebeatRunner) EnsureRunningState(ctx context.Context, applyConfigs bool) {
 	log.Debug("ensuring filebeat is runnable")
 
 	if !fbr.hasRequiredPaths() {
@@ -84,6 +84,7 @@ func (fbr *FilebeatRunner) EnsureRunningState(ctx context.Context) {
 
 	if fbr.running.IsRunning() {
 		log.Debug("filebeat is already running")
+		// filebeat is configured to auto-reload config changes, so nothing extra needed
 		return
 	}
 

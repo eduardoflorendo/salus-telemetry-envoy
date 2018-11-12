@@ -100,9 +100,6 @@ func TestTelegrafRunner_ProcessConfig_CreateModify(t *testing.T) {
 			assert.Equal(t, 1, mainConfigs)
 			assert.Equal(t, 1, instanceConfigs)
 
-			commandHandler.VerifyWasCalledOnce().
-				Signal(matchers.AnyPtrToAgentsAgentRunningContext(), matchers.EqSyscallSignal(syscall.SIGHUP))
-
 		})
 	}
 }
@@ -123,13 +120,125 @@ func TestTelegrafRunner_EnsureRunning_NoConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	telegrafRunner.EnsureRunningState(ctx)
+	telegrafRunner.EnsureRunningState(ctx, false)
 
 	mockCommandHandler.VerifyWasCalled(pegomock.Never()).
 		StartAgentCommand(matchers.AnyPtrToAgentsAgentRunningContext(), matchers.AnyTelemetryEdgeAgentType(),
 			pegomock.AnyString(), matchers.AnyTimeDuration())
 	mockCommandHandler.VerifyWasCalledOnce().
 		Stop(matchers.AnyPtrToAgentsAgentRunningContext())
+}
+
+func TestTelegrafRunner_EnsureRunningState_FullSequence(t *testing.T) {
+	pegomock.RegisterMockTestingT(t)
+
+	dataPath, err := ioutil.TempDir("", "TestTelegrafRunner_EnsureRunningState_NeedsReload")
+	require.NoError(t, err)
+	defer os.RemoveAll(dataPath)
+
+	// touch the file telegraf "exe" in the bin directory
+	binPath := path.Join(dataPath, "CURRENT", "bin")
+	err = os.MkdirAll(binPath, 0755)
+	require.NoError(t, err)
+	binFileOut, err := os.Create(path.Join(binPath, "telegraf"))
+	require.NoError(t, err)
+	binFileOut.Close()
+
+	commandHandler := NewMockCommandHandler()
+	ctx := context.Background()
+
+	telegrafRunner := &agents.TelegrafRunner{}
+	telegrafRunner.SetCommandHandler(commandHandler)
+	viper.Set(config.IngestTelegrafJsonBind, "localhost:8094")
+	err = telegrafRunner.Load(dataPath)
+	require.NoError(t, err)
+
+	///////////////////////
+	// TEST CREATE
+	createConfig := &telemetry_edge.EnvoyInstructionConfigure{
+		AgentType: telemetry_edge.AgentType_TELEGRAF,
+		Operations: []*telemetry_edge.ConfigurationOp{
+			{
+				Id:      "1",
+				Content: "created", // content doesn't matter since command running is mocked
+				Type:    telemetry_edge.ConfigurationOp_CREATE,
+			},
+		},
+	}
+	err = telegrafRunner.ProcessConfig(createConfig)
+	require.NoError(t, err)
+	configs, err := ioutil.ReadDir(path.Join(dataPath, "config.d"))
+	require.NoError(t, err)
+	assert.Len(t, configs, 1)
+
+	runningContext := agents.CreatePreRunningAgentRunningContext()
+
+	pegomock.When(commandHandler.CreateContext(
+		matchers.AnyContextContext(),
+		matchers.AnyTelemetryEdgeAgentType(),
+		pegomock.AnyString(),
+		pegomock.AnyString(),
+		pegomock.AnyString(), pegomock.AnyString(),
+		pegomock.AnyString(), pegomock.AnyString())).
+		ThenReturn(runningContext)
+
+	telegrafRunner.EnsureRunningState(ctx, true)
+
+	commandHandler.VerifyWasCalledOnce().
+		CreateContext(matchers.AnyContextContext(),
+			matchers.EqTelemetryEdgeAgentType(telemetry_edge.AgentType_TELEGRAF),
+			pegomock.EqString("CURRENT/bin/telegraf"),
+			pegomock.EqString(dataPath),
+			pegomock.AnyString(), pegomock.AnyString(),
+			pegomock.AnyString(), pegomock.AnyString())
+
+	commandHandler.VerifyWasCalled(pegomock.Never()).
+		Signal(matchers.AnyPtrToAgentsAgentRunningContext(), matchers.EqSyscallSignal(syscall.SIGHUP))
+
+	///////////////////////
+	// TEST MODIFY
+	modifyConfig := &telemetry_edge.EnvoyInstructionConfigure{
+		AgentType: telemetry_edge.AgentType_TELEGRAF,
+		Operations: []*telemetry_edge.ConfigurationOp{
+			{
+				Id:      "1",
+				Content: "modified",
+				Type:    telemetry_edge.ConfigurationOp_MODIFY,
+			},
+		},
+	}
+	err = telegrafRunner.ProcessConfig(modifyConfig)
+	require.NoError(t, err)
+	configs, err = ioutil.ReadDir(path.Join(dataPath, "config.d"))
+	require.NoError(t, err)
+	assert.Len(t, configs, 1)
+
+	telegrafRunner.EnsureRunningState(ctx, true)
+
+	commandHandler.VerifyWasCalledOnce().
+		Signal(matchers.AnyPtrToAgentsAgentRunningContext(), matchers.EqSyscallSignal(syscall.SIGHUP))
+
+	///////////////////////
+	// TEST REMOVE
+	removeConfig := &telemetry_edge.EnvoyInstructionConfigure{
+		AgentType: telemetry_edge.AgentType_TELEGRAF,
+		Operations: []*telemetry_edge.ConfigurationOp{
+			{
+				Id:   "1",
+				Type: telemetry_edge.ConfigurationOp_REMOVE,
+			},
+		},
+	}
+	err = telegrafRunner.ProcessConfig(removeConfig)
+	require.NoError(t, err)
+	configs, err = ioutil.ReadDir(path.Join(dataPath, "config.d"))
+	require.NoError(t, err)
+	assert.Len(t, configs, 0)
+
+	telegrafRunner.EnsureRunningState(ctx, true)
+
+	commandHandler.VerifyWasCalledOnce().
+		Stop(matchers.EqPtrToAgentsAgentRunningContext(runningContext))
 }
 
 func TestTelegrafRunner_EnsureRunning_MissingExe(t *testing.T) {
@@ -159,7 +268,7 @@ func TestTelegrafRunner_EnsureRunning_MissingExe(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	telegrafRunner.EnsureRunningState(ctx)
+	telegrafRunner.EnsureRunningState(ctx, false)
 
 	mockCommandHandler.VerifyWasCalled(pegomock.Never()).
 		StartAgentCommand(matchers.AnyPtrToAgentsAgentRunningContext(), matchers.AnyTelemetryEdgeAgentType(),

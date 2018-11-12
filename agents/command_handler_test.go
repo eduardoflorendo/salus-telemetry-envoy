@@ -40,7 +40,7 @@ func TestStandardCommandHandler_StartAgentCommand(t *testing.T) {
 	var logBuffer bytes.Buffer
 	log.SetOutput(&logBuffer)
 
-	dataPath, err := ioutil.TempDir("", "test_agents")
+	dataPath, err := ioutil.TempDir("", "TestStandardCommandHandler_StartAgentCommand")
 	require.NoError(t, err)
 	defer os.RemoveAll(dataPath)
 
@@ -52,6 +52,7 @@ func TestStandardCommandHandler_StartAgentCommand(t *testing.T) {
 
 	err = commandHandler.StartAgentCommand(runningContext, telemetry_edge.AgentType_TELEGRAF, "Agent Config:", 1*time.Second)
 	require.NoError(t, err)
+	defer commandHandler.Stop(runningContext)
 
 	assert.FileExists(t, markerPath)
 
@@ -63,7 +64,7 @@ func TestStandardCommandHandler_StartAgentCommand_NoWaitFor(t *testing.T) {
 	var logBuffer bytes.Buffer
 	log.SetOutput(&logBuffer)
 
-	dataPath, err := ioutil.TempDir("", "test_agents")
+	dataPath, err := ioutil.TempDir("", "TestStandardCommandHandler_StartAgentCommand_NoWaitFor")
 	require.NoError(t, err)
 	defer os.RemoveAll(dataPath)
 
@@ -118,5 +119,5 @@ func TestStandardCommandHandler_WaitOnAgentCommand(t *testing.T) {
 	// allow for agent restart delay and call to EnsureRunningState
 	time.Sleep(10 * time.Millisecond)
 
-	agentRunner.VerifyWasCalledOnce().EnsureRunningState(matchers.AnyContextContext())
+	agentRunner.VerifyWasCalledOnce().EnsureRunningState(matchers.AnyContextContext(), pegomock.EqBool(false))
 }

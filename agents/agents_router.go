@@ -122,7 +122,7 @@ func (ar *StandardAgentsRouter) ProcessInstall(install *telemetry_edge.EnvoyInst
 			return
 		}
 
-		specificAgentRunners[agentType].EnsureRunningState(ar.ctx)
+		specificAgentRunners[agentType].EnsureRunningState(ar.ctx, false)
 
 		log.WithFields(log.Fields{
 			"path":    abs,
@@ -136,7 +136,7 @@ func (ar *StandardAgentsRouter) ProcessInstall(install *telemetry_edge.EnvoyInst
 			"version": agentVersion,
 		}).Debug("agent already installed")
 
-		specificAgentRunners[agentType].EnsureRunningState(ar.ctx)
+		specificAgentRunners[agentType].EnsureRunningState(ar.ctx, false)
 
 	}
 }
@@ -155,7 +155,7 @@ func (ar *StandardAgentsRouter) ProcessConfigure(configure *telemetry_edge.Envoy
 				log.WithError(err).Warn("failed to process agent configuration")
 			}
 		} else {
-			specificRunner.EnsureRunningState(ar.ctx)
+			specificRunner.EnsureRunningState(ar.ctx, true)
 		}
 	} else {
 		log.WithField("type", configure.GetAgentType()).Warn("unable to configure unknown agent type")

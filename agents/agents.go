@@ -52,10 +52,12 @@ type SpecificAgentRunner interface {
 	// Load gets called after viper's configuration has been populated and before any other use.
 	Load(agentBasePath string) error
 	SetCommandHandler(handler CommandHandler)
-	// EnsureRunningState is called after installation of an agent and after each call to ProcessConfig
+	// EnsureRunningState is called after installation of an agent and after each call to ProcessConfig.
+	// In the latter case, applyConfigs will be passed as true to indicate the runner should take
+	// actions to reload configuration into an agent, if running.
 	// It must ensure the agent process is running if configs and executable are available
 	// It must also ensure that that the process is stopped if no configuration remains
-	EnsureRunningState(ctx context.Context)
+	EnsureRunningState(ctx context.Context, applyConfigs bool)
 	ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure) error
 	// Stop should stop the agent's process, if running
 	Stop()

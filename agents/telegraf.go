@@ -112,16 +112,14 @@ func (tr *TelegrafRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructi
 		}
 	}
 
-	if applied > 0 {
-		tr.handleConfigReload()
-	} else {
+	if applied == 0 {
 		return &noAppliedConfigsError{}
 	}
 
 	return nil
 }
 
-func (tr *TelegrafRunner) EnsureRunningState(ctx context.Context) {
+func (tr *TelegrafRunner) EnsureRunningState(ctx context.Context, applyConfigs bool) {
 	log.Debug("ensuring telegraf is runnable")
 
 	if !tr.hasRequiredPaths() {
@@ -131,7 +129,8 @@ func (tr *TelegrafRunner) EnsureRunningState(ctx context.Context) {
 	}
 
 	if tr.running.IsRunning() {
-		log.Debug("telegraf is already running")
+		log.Debug("telegraf is already running, signaling config reload")
+		tr.handleConfigReload()
 		return
 	}
 

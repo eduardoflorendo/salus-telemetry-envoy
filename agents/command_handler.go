@@ -112,7 +112,7 @@ func (h *StandardCommandHandler) WaitOnAgentCommand(ctx context.Context, agentRu
 		WithField("agentType", telemetry_edge.AgentType_FILEBEAT).
 		Info("scheduling agent restart")
 	time.AfterFunc(agentRestartDelay, func() {
-		agentRunner.EnsureRunningState(ctx)
+		agentRunner.EnsureRunningState(ctx, false)
 	})
 }
 

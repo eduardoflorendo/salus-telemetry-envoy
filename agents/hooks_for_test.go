@@ -20,6 +20,8 @@ package agents
 
 import (
 	"github.com/racker/telemetry-envoy/telemetry_edge"
+	"os"
+	"os/exec"
 	"time"
 )
 
@@ -44,4 +46,12 @@ func RunAgentRunningContext(ctx *AgentRunningContext) error {
 
 func CreateNoAppliedConfigsError() error {
 	return &noAppliedConfigsError{}
+}
+
+func CreatePreRunningAgentRunningContext() *AgentRunningContext {
+	return &AgentRunningContext{
+		cmd: &exec.Cmd{
+			Process: &os.Process{},
+		},
+	}
 }
