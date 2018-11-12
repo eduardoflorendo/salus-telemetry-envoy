@@ -120,10 +120,10 @@ func (tr *TelegrafRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructi
 }
 
 func (tr *TelegrafRunner) EnsureRunningState(ctx context.Context, applyConfigs bool) {
-	log.Debug("ensuring telegraf is runnable")
+	log.Debug("ensuring telegraf is in correct running state")
 
 	if !tr.hasRequiredPaths() {
-		log.Debug("telegraf not runnable due to some missing paths and files")
+		log.Debug("telegraf not runnable due to some missing paths and files, stopping if needed")
 		tr.commandHandler.Stop(tr.running)
 		return
 	}

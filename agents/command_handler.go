@@ -99,21 +99,24 @@ func (h *StandardCommandHandler) WaitOnAgentCommand(ctx context.Context, agentRu
 	err := runningContext.cmd.Wait()
 	if err != nil {
 		log.WithError(err).
-			WithField("agentType", telemetry_edge.AgentType_FILEBEAT).
+			WithField("agentType", runningContext.agentType).
 			Warn("agent exited abnormally")
 	} else {
 		log.
-			WithField("agentType", telemetry_edge.AgentType_FILEBEAT).
+			WithField("agentType", runningContext.agentType).
 			Info("agent exited successfully")
 	}
+	runningContext.cmd = nil
 
-	h.Stop(runningContext)
-	log.
-		WithField("agentType", telemetry_edge.AgentType_FILEBEAT).
-		Info("scheduling agent restart")
-	time.AfterFunc(agentRestartDelay, func() {
-		agentRunner.EnsureRunningState(ctx, false)
-	})
+	if !runningContext.stopping {
+		h.Stop(runningContext)
+		log.
+			WithField("agentType", runningContext.agentType).
+			Info("scheduling agent restart")
+		time.AfterFunc(agentRestartDelay, func() {
+			agentRunner.EnsureRunningState(ctx, false)
+		})
+	}
 }
 
 func (h *StandardCommandHandler) Signal(runningContext *AgentRunningContext, signal syscall.Signal) error {
@@ -185,6 +188,7 @@ func (*StandardCommandHandler) handleCommandOutputPipe(ctx context.Context, outp
 func (*StandardCommandHandler) Stop(runningContext *AgentRunningContext) {
 	if runningContext.IsRunning() {
 		log.WithField("agentType", runningContext.agentType).Debug("stopping agent")
+		runningContext.stopping = true
 		runningContext.cancel()
 	}
 }
@@ -196,6 +200,7 @@ type AgentRunningContext struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
 	cmd       *exec.Cmd
+	stopping  bool
 }
 
 func (c *AgentRunningContext) IsRunning() bool {

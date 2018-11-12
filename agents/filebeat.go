@@ -74,7 +74,7 @@ func (fbr *FilebeatRunner) SetCommandHandler(handler CommandHandler) {
 }
 
 func (fbr *FilebeatRunner) EnsureRunningState(ctx context.Context, applyConfigs bool) {
-	log.Debug("ensuring filebeat is runnable")
+	log.Debug("ensuring filebeat is in correct running state")
 
 	if !fbr.hasRequiredPaths() {
 		log.Debug("filebeat not runnable due to some missing paths and files")
