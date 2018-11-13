@@ -114,10 +114,10 @@ func TestTelegrafJson_Start(t *testing.T) {
 			require.NoError(t, err)
 			require.NotZero(t, written)
 
-			// yield for ingestor's goroutine
-			time.Sleep(500 * time.Millisecond)
-
-			args := mockEgressConnection.VerifyWasCalled(pegomock.Times(tt.totalCount)).
+			args := mockEgressConnection.VerifyWasCalledEventually(
+				pegomock.Times(tt.totalCount),
+				500*time.Millisecond,
+			).
 				PostMetric(matchers.AnyPtrToTelemetryEdgeMetric()).GetAllCapturedArguments()
 
 			require.Len(t, args, tt.totalCount)
