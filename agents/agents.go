@@ -31,7 +31,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"time"
 )
 
 const (
@@ -41,10 +40,6 @@ const (
 	binSubpath        = "bin"
 	dirPerms          = 0755
 	configFilePerms   = 0600
-)
-
-var (
-	agentRestartDelay = 1 * time.Second
 )
 
 // SpecificAgentRunner manages the lifecyle and configuration of a single type of agent

@@ -76,6 +76,7 @@ func TestStandardCommandHandler_StartAgentCommand_NoWaitFor(t *testing.T) {
 
 	err = commandHandler.StartAgentCommand(runningContext, telemetry_edge.AgentType_FILEBEAT, "", 0)
 	require.NoError(t, err)
+	defer commandHandler.Stop(runningContext)
 
 	sawMarker := make(chan struct{})
 	go func() {
@@ -96,6 +97,25 @@ func TestStandardCommandHandler_StartAgentCommand_NoWaitFor(t *testing.T) {
 	}
 
 	assert.FileExists(t, markerPath)
+}
+
+func TestStandardCommandHandler_Stop_IgnoresTerm(t *testing.T) {
+	dataPath, err := ioutil.TempDir("", "TestStandardCommandHandler_Stop_IgnoresTerm")
+	require.NoError(t, err)
+	defer os.RemoveAll(dataPath)
+
+	commandHandler := agents.NewCommandHandler()
+
+	runningContext := commandHandler.CreateContext(context.Background(), telemetry_edge.AgentType_FILEBEAT,
+		"./ignores_sigterm", "testdata")
+
+	err = commandHandler.StartAgentCommand(runningContext, telemetry_edge.AgentType_FILEBEAT, "", 0)
+	require.NoError(t, err)
+
+	agents.SetAgentTerminationTimeout(10 * time.Millisecond)
+	commandHandler.Stop(runningContext)
+
+	agents.WaitOnAgentRunningContextStopped(t, runningContext, 1*time.Second)
 }
 
 func TestStandardCommandHandler_WaitOnAgentCommand(t *testing.T) {

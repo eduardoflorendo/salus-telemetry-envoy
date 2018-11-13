@@ -39,6 +39,9 @@ ingest:
   telegraf:
     json:
       bind: localhost:8094
+agent:
+  terminationTimeout: 5s
+  restartDelay: 1s
 ```
 
 ## Development

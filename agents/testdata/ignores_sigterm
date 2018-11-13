@@ -1,0 +1,7 @@
+#!/bin/sh
+
+trap "echo ignoring TERM" SIGTERM
+
+while true; do
+  sleep 10000
+done

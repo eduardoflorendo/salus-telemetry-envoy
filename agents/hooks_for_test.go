@@ -20,8 +20,10 @@ package agents
 
 import (
 	"github.com/racker/telemetry-envoy/telemetry_edge"
+	"github.com/spf13/viper"
 	"os"
 	"os/exec"
+	"testing"
 	"time"
 )
 
@@ -37,11 +39,30 @@ func UnregisterAllAgentRunners() {
 }
 
 func SetAgentRestartDelay(delay time.Duration) {
-	agentRestartDelay = delay
+	viper.Set(agentRestartDelayConfig, delay)
 }
 
 func RunAgentRunningContext(ctx *AgentRunningContext) error {
+	ctx.stopped = make(chan struct{}, 1)
 	return ctx.cmd.Run()
+}
+
+func SetAgentTerminationTimeout(delay time.Duration) {
+	viper.Set(agentTerminationTimeoutConfig, delay)
+}
+
+func WaitOnAgentRunningContextStopped(t *testing.T, ctx *AgentRunningContext, timeout time.Duration) {
+	done := make(chan struct{}, 1)
+	go func() {
+		_, _ = ctx.cmd.Process.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-time.After(timeout):
+		t.Error("did not see AgentRunningContext stop")
+	case <-done:
+	}
 }
 
 func CreateNoAppliedConfigsError() error {

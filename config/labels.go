@@ -35,7 +35,7 @@ func ComputeLabels() (map[string]string, error) {
 	if err == nil {
 		labels["hostname"] = hostname
 	} else {
-		return nil, errors.Wrap(err, "unable to deterine hostname label")
+		return nil, errors.Wrap(err, "unable to determine hostname label")
 	}
 
 	configuredLabels := viper.GetStringMapString("labels")
