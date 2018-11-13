@@ -1,6 +1,46 @@
 
 [![CircleCI branch](https://img.shields.io/circleci/project/github/racker/rmii-telemetry-envoy/master.svg)](https://circleci.com/gh/racker/rmii-telemetry-envoy)
 
+## Run Configuration
+
+Envoy's `run` sub-command can accept some configuration via command-line arguments and/or all
+configuration via a yaml file passed via `--config`. The following is an example configuration
+file that can be used as a starting point:
+
+```yaml
+labels:
+  # Any key:value labels can be provided here an can override discovered labels, such as hostname
+  #environment: production
+tls:
+  auth_service:
+    url: http://localhost:8182
+    token_provider: keystone_v2
+  #Provides client authentication certificates pre-allocated. Remove auth_service config when using this.
+  #provided:
+    #cert: client.pem
+    #key: client-key.pem
+    #ca: ca.pem
+  token_providers:
+    keystone_v2:
+      identityServiceUrl: https://identity.api.rackspacecloud.com/v2.0/
+      # can also be set by env variable $ENVOY_KEYSTONE_USERNAME
+      username: ...
+      # can also be set by env variable $ENVOY_KEYSTONE_APIKEY
+      apikey: ...
+    #Specifies one or more HTTP request headers to pass to authentication service
+    #static:
+    #  - name: Header-Name
+    #    value: headerValue
+ambassador:
+  address: localhost:6565
+ingest:
+  lumberjack:
+    bind: localhost:5044
+  telegraf:
+    json:
+      bind: localhost:8094
+```
+
 ## Development
 
 ### Environment Setup

@@ -151,6 +151,5 @@ func (t *TelegrafJson) processMetric(m *telegrafJsonMetric) {
 		},
 	}
 
-	log.WithField("posted", outMetric).Debug("posting metric")
 	t.egressConn.PostMetric(outMetric)
 }
