@@ -24,9 +24,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"io"
 	"os/exec"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -47,6 +49,16 @@ type CommandHandler interface {
 
 type StandardCommandHandler struct{}
 
+const (
+	agentTerminationTimeoutConfig = "agent.terminationTimeout"
+	agentRestartDelayConfig       = "agent.restartDelay"
+)
+
+func init() {
+	viper.SetDefault(agentTerminationTimeoutConfig, 5*time.Second)
+	viper.SetDefault(agentRestartDelayConfig, 1*time.Second)
+}
+
 func NewCommandHandler() CommandHandler {
 	return &StandardCommandHandler{}
 }
@@ -54,7 +66,7 @@ func NewCommandHandler() CommandHandler {
 func (h *StandardCommandHandler) CreateContext(ctx context.Context, agentType telemetry_edge.AgentType, cmdName string, workingDir string, arg ...string) *AgentRunningContext {
 	cmdCtx, cancel := context.WithCancel(ctx)
 
-	cmd := exec.CommandContext(cmdCtx, cmdName, arg...)
+	cmd := exec.Command(cmdName, arg...)
 	cmd.Dir = workingDir
 
 	return &AgentRunningContext{
@@ -73,6 +85,9 @@ func (h *StandardCommandHandler) StartAgentCommand(runningContext *AgentRunningC
 	if err != nil {
 		return errors.New("logging and watching command output")
 	}
+
+	runningContext.stopping = false
+	runningContext.stopped = make(chan struct{}, 1)
 
 	log.
 		WithField("agentType", agentType).
@@ -106,14 +121,17 @@ func (h *StandardCommandHandler) WaitOnAgentCommand(ctx context.Context, agentRu
 			WithField("agentType", runningContext.agentType).
 			Info("agent exited successfully")
 	}
+
+	// indicate child process termination for go routines and Stop handling
 	runningContext.cmd = nil
+	close(runningContext.stopped)
+	runningContext.cancel()
 
 	if !runningContext.stopping {
-		h.Stop(runningContext)
 		log.
 			WithField("agentType", runningContext.agentType).
 			Info("scheduling agent restart")
-		time.AfterFunc(agentRestartDelay, func() {
+		time.AfterFunc(viper.GetDuration(agentRestartDelayConfig), func() {
 			agentRunner.EnsureRunningState(ctx, false)
 		})
 	}
@@ -186,21 +204,53 @@ func (*StandardCommandHandler) handleCommandOutputPipe(ctx context.Context, outp
 }
 
 func (*StandardCommandHandler) Stop(runningContext *AgentRunningContext) {
-	if runningContext.IsRunning() {
+	if runningContext == nil {
+		return
+	}
+
+	runningContext.Lock()
+
+	if !runningContext.stopping && runningContext.IsRunning() {
 		log.WithField("agentType", runningContext.agentType).Debug("stopping agent")
 		runningContext.stopping = true
+		runningContext.Unlock()
+
+		err := runningContext.cmd.Process.Signal(syscall.SIGTERM)
+		if err != nil {
+			log.WithField("agentType", runningContext.agentType).WithError(err).Warn("failed to send TERM signal")
+		}
+
+		select {
+		case <-time.After(viper.GetDuration(agentTerminationTimeoutConfig)):
+			log.WithField("agentType", runningContext.agentType).Warn("agent process did not stop in time using TERM, now using KILL")
+			err = runningContext.cmd.Process.Signal(syscall.SIGKILL)
+			if err != nil {
+				log.WithField("agentType", runningContext.agentType).WithError(err).Warn("failed to send KILL signal")
+			}
+
+		case <-runningContext.stopped:
+			// normal process
+		}
+
 		runningContext.cancel()
+	} else {
+		runningContext.Unlock()
 	}
 }
 
 // AgentRunningContext encapsulates the state of a running agent process
 // This should be created using CommandHandler's CreateContext
 type AgentRunningContext struct {
+	sync.Mutex
 	agentType telemetry_edge.AgentType
-	ctx       context.Context
-	cancel    context.CancelFunc
-	cmd       *exec.Cmd
-	stopping  bool
+	// ctx and cancel are used to coordinate the lifecycle of go routines used by the CommandHandler
+	ctx    context.Context
+	cancel context.CancelFunc
+	cmd    *exec.Cmd
+	// indicates that a command handler has started a Stop handling of this context
+	stopping bool
+	// a channel used a semaphore to enable blocking on child process during stopping process
+	stopped chan struct{}
 }
 
 func (c *AgentRunningContext) IsRunning() bool {
