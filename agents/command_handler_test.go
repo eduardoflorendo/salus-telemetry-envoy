@@ -136,8 +136,8 @@ func TestStandardCommandHandler_WaitOnAgentCommand(t *testing.T) {
 
 	commandHandler.WaitOnAgentCommand(ctx, agentRunner, runningContext)
 
-	// allow for agent restart delay and call to EnsureRunningState
-	time.Sleep(10 * time.Millisecond)
-
-	agentRunner.VerifyWasCalledOnce().EnsureRunningState(matchers.AnyContextContext(), pegomock.EqBool(false))
+	agentRunner.VerifyWasCalledEventually(
+		pegomock.Once(),
+		10*time.Millisecond,
+	).EnsureRunningState(matchers.AnyContextContext(), pegomock.EqBool(false))
 }
