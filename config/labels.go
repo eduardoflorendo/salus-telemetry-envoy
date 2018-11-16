@@ -110,9 +110,11 @@ func GetXenIdFromXenClient() (string, error) {
 	case "windows":
 		file := "c:\\Program Files\\Citrix\\XenTools\\xenstore_client.exe"
 		if _, err := os.Stat(file); os.IsNotExist(err) || err != nil {
-			output, err := exec.Command("powershell", "& {$sid = ((Get-WmiObject -Class CitrixXenStoreBase -Namespace root\\wmi)" +
+			output, err := exec.Command("powershell",
+				"& {$sid = ((Get-WmiObject -Class CitrixXenStoreBase -Namespace root\\wmi)" +
 				".AddSession(\"Temp\").SessionId) ; $s = (Get-WmiObject -Namespace root\\wmi -Query " +
-				"\"select * from CitrixXenStoreSession where SessionId=$sid\") ; $v = $s.GetValue(\"name\").value ; $s.EndSession() ; $v}",
+				"\"select * from CitrixXenStoreSession where SessionId=$sid\") ; $v = $s.GetValue(\"name\").value ;" +
+				"$s.EndSession() ; $v}",
 				"read", "name").Output()
 			if err != nil {
 				return "", err
