@@ -44,7 +44,7 @@ func ComputeLabels() (map[string]string, error) {
 
 	xenId, err := GetXenId()
 	if err != nil {
-		log.WithError(err).Warn("unable to determine xen-id")
+		log.WithError(err).Debug("unable to determine xen-id")
 	} else {
 		labels["xen-id"] = xenId
 	}
