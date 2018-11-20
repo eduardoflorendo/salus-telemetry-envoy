@@ -30,6 +30,7 @@ import (
 // It also auto discovers various instance identifiers such as the os type and hostname.
 // If an auto-detected label is also specified in the config file, the config file value will be used.
 // These labels are passed over to the server-side endpoint.
+// All label key and values are lower-case; keys can include a hyphen.
 func ComputeLabels() (map[string]string, error) {
 	labels := make(map[string]string)
 
@@ -47,6 +48,22 @@ func ComputeLabels() (map[string]string, error) {
 		log.WithError(err).Debug("unable to determine xen-id")
 	} else {
 		labels["xen-id"] = xenId
+	}
+
+	serial, err := GetSystemSerialNumber()
+	if err != nil {
+		log.WithError(err).Debug("unable to determine system serial number")
+	} else {
+		labels["serial"] = serial
+	}
+
+	biosData, err := GetBiosData()
+	if err != nil {
+		log.WithError(err).Debug("unable to determine bios data")
+	} else {
+		for k, v := range biosData {
+			labels[k] = v
+		}
 	}
 
 	configuredLabels := viper.GetStringMapString("labels")

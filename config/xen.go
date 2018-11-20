@@ -29,7 +29,6 @@ import (
 )
 
 // GetXenId will try and detect the id of any server running on the xen hypervisor.
-// It adds this id into the list of labels with key "xen-id".
 func GetXenId() (string, error) {
 	xenId, err := GetXenIdFromCloudInit()
 	if err != nil {
@@ -55,6 +54,7 @@ func GetXenIdFromCloudInit() (string, error) {
 	}
 	// remove new line characters
 	xenId := strings.TrimSuffix(string(data), "\n")
+	xenId = strings.ToLower(xenId)
 	// the fallback datasource is iid-datasource-none when it does not exist
 	// https://cloudinit.readthedocs.io/en/latest/topics/datasources/fallback.html
 	if xenId == "iid-datasource-none" || xenId == "nocloud" {
@@ -99,6 +99,7 @@ func GetXenIdFromXenClient() (string, error) {
 
 	// remove new line characters
 	xenId = strings.TrimSuffix(strings.TrimSuffix(xenId, "\n"), "\r")
+	xenId = strings.ToLower(xenId)
 
 	return xenId, nil
 }
