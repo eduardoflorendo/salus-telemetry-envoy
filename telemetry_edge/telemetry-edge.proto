@@ -11,7 +11,7 @@ service TelemetryAmbassador {
 message EnvoySummary {
     string version = 1;
 
-    string instanceId = 2;
+    string envoyId = 2;
 
     repeated AgentType supportedAgents = 3;
 
@@ -75,12 +75,12 @@ message ConfigurationOp {
 message EnvoyInstructionRefresh{}
 
 message KeepAliveRequest{
-    string instanceId = 1;
+    string envoyId = 1;
 }
 message KeepAliveResponse{}
 
 message LogEvent {
-    string instanceId = 1;
+    string envoyId = 1;
     AgentType agentType = 2;
     string jsonContent = 3;
 }
@@ -88,7 +88,7 @@ message LogEvent {
 message PostLogEventResponse{}
 
 message PostedMetric {
-    string instanceId = 1;
+    string envoyId = 1;
     Metric metric = 2;
 }
 

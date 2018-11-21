@@ -64,7 +64,7 @@ type StandardEgressConnection struct {
 	KeepAliveInterval time.Duration
 
 	client            telemetry_edge.TelemetryAmbassadorClient
-	instanceId        string
+	envoyId           string
 	ctx               context.Context
 	agentsRunner      agents.Router
 	grpcTlsDialOption grpc.DialOption
@@ -130,7 +130,7 @@ func (c *StandardEgressConnection) Start(ctx context.Context, supportedAgents []
 			log.WithError(err).Warn("failure during retry section")
 		}
 
-		c.instanceId = c.idGenerator.Generate()
+		c.envoyId = c.idGenerator.Generate()
 	}
 }
 
@@ -151,12 +151,12 @@ func (c *StandardEgressConnection) attach() error {
 	defer conn.Close()
 
 	c.client = telemetry_edge.NewTelemetryAmbassadorClient(conn)
-	c.instanceId = c.idGenerator.Generate()
+	c.envoyId = c.idGenerator.Generate()
 
 	connCtx, cancelFunc := context.WithCancel(c.ctx)
 
 	envoySummary := &telemetry_edge.EnvoySummary{
-		InstanceId:      c.instanceId,
+		EnvoyId:         c.envoyId,
 		SupportedAgents: c.supportedAgents,
 		Labels:          c.labels,
 	}
@@ -194,7 +194,7 @@ func (c *StandardEgressConnection) PostLogEvent(agentType telemetry_edge.AgentTy
 
 	log.Debug("posting log event")
 	_, err := c.client.PostLogEvent(callCtx, &telemetry_edge.LogEvent{
-		InstanceId:  c.instanceId,
+		EnvoyId:     c.envoyId,
 		AgentType:   agentType,
 		JsonContent: jsonContent,
 	})
@@ -209,7 +209,7 @@ func (c *StandardEgressConnection) PostMetric(metric *telemetry_edge.Metric) {
 
 	log.WithField("metric", metric).Debug("posting metric")
 	_, err := c.client.PostMetric(callCtx, &telemetry_edge.PostedMetric{
-		InstanceId: c.instanceId,
+		EnvoyId:    c.envoyId,
 		Metric:     metric,
 	})
 	if err != nil {
@@ -222,7 +222,7 @@ func (c *StandardEgressConnection) sendKeepAlives(ctx context.Context, errChan c
 		select {
 		case <-time.After(c.KeepAliveInterval):
 			_, err := c.client.KeepAlive(ctx, &telemetry_edge.KeepAliveRequest{
-				InstanceId: c.instanceId,
+				EnvoyId: c.envoyId,
 			})
 			if err != nil {
 				errChan <- errors.Wrap(err, "failed to send keep alive")
