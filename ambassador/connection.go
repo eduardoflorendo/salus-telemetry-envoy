@@ -201,12 +201,12 @@ func (c *StandardEgressConnection) attach() error {
 
 	errChan := make(chan error, 10)
 
-	go c.watchForInstructions(connCtx, errChan, instructions)
-	go c.sendKeepAlives(connCtx, errChan)
+	go c.watchForInstructions(outgoingCtx, errChan, instructions)
+	go c.sendKeepAlives(outgoingCtx, errChan)
 
 	for {
 		select {
-		case <-connCtx.Done():
+		case <-outgoingCtx.Done():
 			err := instructions.CloseSend()
 			if err != nil {
 				log.WithError(err).Warn("closing send side of instructions stream")
@@ -247,7 +247,7 @@ func (c *StandardEgressConnection) PostMetric(metric *telemetry_edge.Metric) {
 	}
 }
 
-func (c *StandardEgressConnection) sendKeepAlives(connCtx context.Context, errChan chan<- error) {
+func (c *StandardEgressConnection) sendKeepAlives(ctx context.Context, errChan chan<- error) {
 	for {
 		select {
 		case <-time.After(c.KeepAliveInterval):
@@ -260,7 +260,7 @@ func (c *StandardEgressConnection) sendKeepAlives(connCtx context.Context, errCh
 			}
 			callCancel()
 
-		case <-connCtx.Done():
+		case <-ctx.Done():
 			return
 		}
 	}
