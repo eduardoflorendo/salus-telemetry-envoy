@@ -1,0 +1,56 @@
+/*
+ *    Copyright 2018 Rackspace US, Inc.
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ *
+ *
+ */
+
+package config
+
+import (
+	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
+	"os/exec"
+	"runtime"
+	"strings"
+)
+
+// GetSystemSerialNumber returns the serial number of the running system.
+func GetSystemSerialNumber() (string, error) {
+	var serial string
+	switch runtime.GOOS {
+	case "linux":
+		output, err := exec.Command("dmidecode", "-s", "system-serial-number").Output()
+		if err != nil {
+			log.WithError(err).Debug("failed to execute dmidecode command to gather serial number")
+			return "", err
+		}
+		serial = string(output)
+	case "windows":
+		output, err := exec.Command("powershell", "(Get-WmiObject win32_bios).SerialNumber").Output()
+		if err != nil {
+			log.WithError(err).Debug("failed to execute powershell command to gather serial number")
+			return "", err
+		}
+		serial = string(output)
+	default:
+		return "", errors.New("no serial number found on os with type " + runtime.GOOS)
+	}
+
+	// remove new line characters
+	serial = strings.TrimSpace(serial)
+	serial = strings.ToLower(serial)
+
+	return serial, nil
+}

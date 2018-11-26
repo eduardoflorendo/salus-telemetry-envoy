@@ -26,27 +26,55 @@ import (
 	"runtime"
 )
 
+// Discoverable label names
+const (
+	ArchLabel        = "arch"
+	BiosVendorLabel  = "bios-vendor"
+	BiosVersionLabel = "bios-version"
+	HostnameLabel    = "hostname"
+	OsLabel          = "os"
+	SerialNoLabel    = "serial"
+	XenIdLabel       = "xen-id"
+)
+
 // ComputeLabels reads any labels specified in the config file.
 // It also auto discovers various instance identifiers such as the os type and hostname.
 // If an auto-detected label is also specified in the config file, the config file value will be used.
 // These labels are passed over to the server-side endpoint.
+// All label key and values are lower-case; keys can include a hyphen.
 func ComputeLabels() (map[string]string, error) {
 	labels := make(map[string]string)
 
-	labels["os"] = runtime.GOOS
-	labels["arch"] = runtime.GOARCH
+	labels[OsLabel] = runtime.GOOS
+	labels[ArchLabel] = runtime.GOARCH
 
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to determine hostname label")
 	}
-	labels["hostname"] = hostname
+	labels[HostnameLabel] = hostname
 
 	xenId, err := GetXenId()
 	if err != nil {
 		log.WithError(err).Debug("unable to determine xen-id")
 	} else {
-		labels["xen-id"] = xenId
+		labels[XenIdLabel] = xenId
+	}
+
+	serial, err := GetSystemSerialNumber()
+	if err != nil {
+		log.WithError(err).Debug("unable to determine system serial number")
+	} else {
+		labels[SerialNoLabel] = serial
+	}
+
+	biosData, err := GetBiosData()
+	if err != nil {
+		log.WithError(err).Debug("unable to determine bios data")
+	} else {
+		for k, v := range biosData {
+			labels[k] = v
+		}
 	}
 
 	configuredLabels := viper.GetStringMapString("labels")
