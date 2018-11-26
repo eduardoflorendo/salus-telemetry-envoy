@@ -60,7 +60,7 @@ func GetWindowsBiosData() (map[string]string, error) {
 		log.WithError(err).Debug("failed to execute powershell command to gather bios manufacturer")
 		return nil, err
 	}
-	vendor = strings.TrimSuffix(strings.TrimSuffix(string(output), "\n"), "\r")
+	vendor = strings.TrimSpace(string(output))
 	vendor = strings.ToLower(vendor)
 
 	output, err = exec.Command("powershell", "(Get-WmiObject win32_bios).SMBIOSBIOSVersion").Output()
@@ -68,7 +68,7 @@ func GetWindowsBiosData() (map[string]string, error) {
 		log.WithError(err).Debug("failed to execute powershell command to gather bios version")
 		return nil, err
 	}
-	version = strings.TrimSuffix(strings.TrimSuffix(string(output), "\n"), "\r")
+	version = strings.TrimSpace(string(output))
 	version = strings.ToLower(version)
 
 	biosLabels := map[string]string{
@@ -87,14 +87,14 @@ func GetLinuxBiosData() (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	vendor = strings.TrimSuffix(string(output), "\n")
+	vendor = strings.TrimSpace(string(output))
 	vendor = strings.ToLower(vendor)
 
 	output, err = exec.Command("dmidecode", "-s", "bios-version").Output()
 	if err != nil {
 		return nil, err
 	}
-	version = strings.TrimSuffix(string(output), "\n")
+	version = strings.TrimSpace(string(output))
 	version = strings.ToLower(version)
 
 	biosLabels := map[string]string{

@@ -49,7 +49,7 @@ func GetSystemSerialNumber() (string, error) {
 	}
 
 	// remove new line characters
-	serial = strings.TrimSuffix(strings.TrimSuffix(serial, "\n"), "\r")
+	serial = strings.TrimSpace(serial)
 	serial = strings.ToLower(serial)
 
 	return serial, nil

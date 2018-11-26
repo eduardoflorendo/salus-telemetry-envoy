@@ -53,7 +53,7 @@ func GetXenIdFromCloudInit() (string, error) {
 		return "", errors.Wrap(err, "failed to read from instance id path")
 	}
 	// remove new line characters
-	xenId := strings.TrimSuffix(string(data), "\n")
+	xenId := strings.TrimSpace(string(data))
 	xenId = strings.ToLower(xenId)
 	// the fallback datasource is iid-datasource-none when it does not exist
 	// https://cloudinit.readthedocs.io/en/latest/topics/datasources/fallback.html
@@ -98,7 +98,7 @@ func GetXenIdFromXenClient() (string, error) {
 	}
 
 	// remove new line characters
-	xenId = strings.TrimSuffix(strings.TrimSuffix(xenId, "\n"), "\r")
+	xenId = strings.TrimSpace(xenId)
 	xenId = strings.ToLower(xenId)
 
 	return xenId, nil
