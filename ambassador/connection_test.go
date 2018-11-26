@@ -281,7 +281,6 @@ func TestStandardEgressConnection_PostMetric(t *testing.T) {
 
 	select {
 	case postedMetric := <-ambassadorService.metrics:
-		assert.Equal(t, "id-1", postedMetric.InstanceId)
 		assert.Equal(t, "cpu", postedMetric.Metric.GetNameTagValue().Name)
 		assert.Equal(t, "id-1", ambassadorService.idViaPostMetric)
 
@@ -336,7 +335,6 @@ func TestStandardEgressConnection_PostLogEvent(t *testing.T) {
 
 	select {
 	case logEvent := <-ambassadorService.logs:
-		assert.Equal(t, "id-1", logEvent.InstanceId)
 		assert.Equal(t, telemetry_edge.AgentType_FILEBEAT, logEvent.AgentType)
 		assert.Equal(t, `{"testing":"value"}`, logEvent.JsonContent)
 		assert.Equal(t, "id-1", ambassadorService.idViaPostLogEvent)
