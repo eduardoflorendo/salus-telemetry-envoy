@@ -72,15 +72,19 @@ type StandardEgressConnection struct {
 	supportedAgents   []telemetry_edge.AgentType
 	idGenerator       IdGenerator
 	labels            map[string]string
+	identifier        string
 }
 
 func init() {
 	viper.SetDefault(config.AmbassadorAddress, "localhost:6565")
 	viper.SetDefault("grpc.callLimit", 30*time.Second)
 	viper.SetDefault("ambassador.keepAliveInterval", 10*time.Second)
+	viper.SetDefault(config.Identifier, "hostname")
 }
 
 func NewEgressConnection(agentsRunner agents.Router, idGenerator IdGenerator) (EgressConnection, error) {
+	identifier := viper.GetString(config.Identifier)
+
 	connection := &StandardEgressConnection{
 		Address:           viper.GetString(config.AmbassadorAddress),
 		TlsDisabled:       viper.GetBool("tls.disabled"),
@@ -88,6 +92,7 @@ func NewEgressConnection(agentsRunner agents.Router, idGenerator IdGenerator) (E
 		KeepAliveInterval: viper.GetDuration("ambassador.keepAliveInterval"),
 		agentsRunner:      agentsRunner,
 		idGenerator:       idGenerator,
+		identifier:        identifier,
 	}
 
 	var err error
@@ -100,6 +105,16 @@ func NewEgressConnection(agentsRunner agents.Router, idGenerator IdGenerator) (E
 	if err != nil {
 		return nil, err
 	}
+
+	identifierValue, ok := connection.labels[identifier]
+	if !ok {
+		return nil, errors.New("No value found for identifier (" + identifier + ").")
+	}
+	log.WithFields(log.Fields{
+			"identifierKey": identifier,
+			"identifierValue": identifierValue,
+	}).Debug("Starting connection with identifier")
+
 
 	return connection, nil
 }
@@ -159,6 +174,7 @@ func (c *StandardEgressConnection) attach() error {
 		InstanceId:      c.instanceId,
 		SupportedAgents: c.supportedAgents,
 		Labels:          c.labels,
+		Identifier:      c.identifier,
 	}
 	log.WithField("summary", envoySummary).Info("attaching")
 

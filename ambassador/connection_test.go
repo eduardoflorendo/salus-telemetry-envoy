@@ -113,6 +113,7 @@ func TestStandardEgressConnection_Start(t *testing.T) {
 	select {
 	case summary := <-ambassadorService.attaches:
 		assert.Equal(t, "id-1", summary.InstanceId)
+		assert.Equal(t, "hostname", summary.Identifier)
 	case <-time.After(500 * time.Millisecond):
 		t.Error("did not see attachment in time")
 	}
@@ -122,6 +123,82 @@ func TestStandardEgressConnection_Start(t *testing.T) {
 		// good
 	case <-time.After(100 * time.Millisecond):
 		t.Error("did not see keep alive in time")
+	}
+}
+
+func TestInvalidIdentifierSet(t *testing.T) {
+	pegomock.RegisterMockTestingT(t)
+
+	ambassadorPort, err := freeport.GetFreePort()
+	require.NoError(t, err)
+
+	ambassadorAddr := net.JoinHostPort("localhost", strconv.Itoa(ambassadorPort))
+	listener, err := net.Listen("tcp", ambassadorAddr)
+	require.NoError(t, err)
+
+	grpcServer := grpc.NewServer()
+	defer grpcServer.Stop()
+
+	var done = make(chan struct{}, 1)
+	defer close(done)
+	ambassadorService := NewTestingAmbassadorService(done)
+	telemetry_edge.RegisterTelemetryAmbassadorServer(grpcServer, ambassadorService)
+
+	go grpcServer.Serve(listener)
+	defer grpcServer.Stop()
+
+	idGenerator := NewMockIdGenerator()
+	pegomock.When(idGenerator.Generate()).ThenReturn("id-1")
+
+	mockAgentsRunner := NewMockRouter()
+	viper.Set(config.AmbassadorAddress, ambassadorAddr)
+	viper.Set("tls.disabled", true)
+	viper.Set("identifier", "this-is-a-test")
+	_, err = ambassador.NewEgressConnection(mockAgentsRunner, idGenerator)
+	require.Error(t, err, "No value found for identifier (this-is-a-test)")
+}
+
+func TestCustomIdentifierSet(t *testing.T) {
+	pegomock.RegisterMockTestingT(t)
+
+	ambassadorPort, err := freeport.GetFreePort()
+	require.NoError(t, err)
+
+	ambassadorAddr := net.JoinHostPort("localhost", strconv.Itoa(ambassadorPort))
+	listener, err := net.Listen("tcp", ambassadorAddr)
+	require.NoError(t, err)
+
+	grpcServer := grpc.NewServer()
+	defer grpcServer.Stop()
+
+	var done = make(chan struct{}, 1)
+	defer close(done)
+	ambassadorService := NewTestingAmbassadorService(done)
+	telemetry_edge.RegisterTelemetryAmbassadorServer(grpcServer, ambassadorService)
+
+	go grpcServer.Serve(listener)
+	defer grpcServer.Stop()
+
+	idGenerator := NewMockIdGenerator()
+	pegomock.When(idGenerator.Generate()).ThenReturn("id-2")
+
+	mockAgentsRunner := NewMockRouter()
+	viper.Set(config.AmbassadorAddress, ambassadorAddr)
+	viper.Set("tls.disabled", true)
+	viper.Set("identifier", "arch")
+	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, idGenerator)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go egressConnection.Start(ctx, []telemetry_edge.AgentType{telemetry_edge.AgentType_TELEGRAF})
+	defer cancel()
+
+	select {
+	case summary := <-ambassadorService.attaches:
+		assert.Equal(t, "id-2", summary.InstanceId)
+		assert.Equal(t, "arch", summary.Identifier)
+	case <-time.After(500 * time.Millisecond):
+		t.Error("did not see attachment in time")
 	}
 }
 
