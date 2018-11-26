@@ -118,10 +118,9 @@ func NewEgressConnection(agentsRunner agents.Router, idGenerator IdGenerator) (E
 		return nil, errors.New("No value found for identifier (" + identifier + ").")
 	}
 	log.WithFields(log.Fields{
-			"identifierKey": identifier,
-			"identifierValue": identifierValue,
+		"identifierKey":   identifier,
+		"identifierValue": identifierValue,
 	}).Debug("Starting connection with identifier")
-
 
 	return connection, nil
 }
@@ -179,9 +178,14 @@ func (c *StandardEgressConnection) attach() error {
 	c.client = telemetry_edge.NewTelemetryAmbassadorClient(conn)
 	callMetadata := metadata.Pairs(EnvoyIdHeader, c.envoyId)
 
-	cancelCtx, cancelFunc := context.WithCancel(c.ctx)
-	callCtx := metadata.NewOutgoingContext(cancelCtx, callMetadata)
-	c.outgoingContext = callCtx
+	// connCtx creates a scope where the go routines for each connection can all be
+	// cancelled in one-shot when an error is reported by any of them. It also inherits
+	// from the application context, where a termination signal will also mark the context as "done"
+	connCtx, cancelFunc := context.WithCancel(c.ctx)
+	// outgoingCtx further extends the context by populating headers that will be passed along
+	// with each gRPC call.
+	outgoingCtx := metadata.NewOutgoingContext(connCtx, callMetadata)
+	c.outgoingContext = outgoingCtx
 
 	envoySummary := &telemetry_edge.EnvoySummary{
 		SupportedAgents: c.supportedAgents,
@@ -190,19 +194,19 @@ func (c *StandardEgressConnection) attach() error {
 	}
 	log.WithField("summary", envoySummary).Info("attaching")
 
-	instructions, err := c.client.AttachEnvoy(callCtx, envoySummary)
+	instructions, err := c.client.AttachEnvoy(outgoingCtx, envoySummary)
 	if err != nil {
 		return errors.Wrap(err, "failed to attach Envoy")
 	}
 
 	errChan := make(chan error, 10)
 
-	go c.watchForInstructions(cancelCtx, errChan, instructions)
-	go c.sendKeepAlives(callCtx, errChan)
+	go c.watchForInstructions(connCtx, errChan, instructions)
+	go c.sendKeepAlives(connCtx, errChan)
 
 	for {
 		select {
-		case <-cancelCtx.Done():
+		case <-connCtx.Done():
 			err := instructions.CloseSend()
 			if err != nil {
 				log.WithError(err).Warn("closing send side of instructions stream")
@@ -236,24 +240,27 @@ func (c *StandardEgressConnection) PostMetric(metric *telemetry_edge.Metric) {
 
 	log.WithField("metric", metric).Debug("posting metric")
 	_, err := c.client.PostMetric(callCtx, &telemetry_edge.PostedMetric{
-		Metric:     metric,
+		Metric: metric,
 	})
 	if err != nil {
 		log.WithError(err).Warn("failed to post metric")
 	}
 }
 
-func (c *StandardEgressConnection) sendKeepAlives(callCtx context.Context, errChan chan<- error) {
+func (c *StandardEgressConnection) sendKeepAlives(connCtx context.Context, errChan chan<- error) {
 	for {
 		select {
 		case <-time.After(c.KeepAliveInterval):
+			callCtx, callCancel := context.WithTimeout(c.outgoingContext, c.GrpcCallLimit)
 			_, err := c.client.KeepAlive(callCtx, &telemetry_edge.KeepAliveRequest{})
 			if err != nil {
 				errChan <- errors.Wrap(err, "failed to send keep alive")
+				callCancel()
 				return
 			}
+			callCancel()
 
-		case <-callCtx.Done():
+		case <-connCtx.Done():
 			return
 		}
 	}
