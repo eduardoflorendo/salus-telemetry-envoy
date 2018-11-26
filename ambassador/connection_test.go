@@ -130,7 +130,6 @@ func TestStandardEgressConnection_Start(t *testing.T) {
 
 	select {
 	case summary := <-ambassadorService.attaches:
-		assert.Equal(t, "id-1", summary.InstanceId)
 		assert.Equal(t, "hostname", summary.Identifier)
 		assert.Equal(t, "id-1", ambassadorService.idViaAttach)
 	case <-time.After(500 * time.Millisecond):
@@ -215,7 +214,6 @@ func TestCustomIdentifierSet(t *testing.T) {
 
 	select {
 	case summary := <-ambassadorService.attaches:
-		assert.Equal(t, "id-2", summary.InstanceId)
 		assert.Equal(t, "arch", summary.Identifier)
 	case <-time.After(500 * time.Millisecond):
 		t.Error("did not see attachment in time")
