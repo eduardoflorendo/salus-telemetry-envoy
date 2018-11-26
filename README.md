@@ -8,6 +8,7 @@ configuration via a yaml file passed via `--config`. The following is an example
 file that can be used as a starting point:
 
 ```yaml
+identifier: xen-id # The corresponding label whose value acts as the identifier for the envoy. Defaults to hostname.
 labels:
   # Any key:value labels can be provided here an can override discovered labels, such as hostname
   #environment: production
