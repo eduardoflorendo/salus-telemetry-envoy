@@ -72,8 +72,8 @@ func GetWindowsBiosData() (map[string]string, error) {
 	version = strings.ToLower(version)
 
 	biosLabels := map[string]string{
-		"bios-vendor": vendor,
-		"bios-version": version,
+		BiosVendorLabel: vendor,
+		BiosVersionLabel: version,
 	}
 
 	return biosLabels, nil
@@ -98,8 +98,8 @@ func GetLinuxBiosData() (map[string]string, error) {
 	version = strings.ToLower(version)
 
 	biosLabels := map[string]string{
-		"bios-vendor": vendor,
-		"bios-version": version,
+		BiosVendorLabel: vendor,
+		BiosVersionLabel: version,
 	}
 
 	return biosLabels, nil
