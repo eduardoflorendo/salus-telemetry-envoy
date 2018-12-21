@@ -77,7 +77,7 @@ type StandardEgressConnection struct {
 	supportedAgents   []telemetry_edge.AgentType
 	idGenerator       IdGenerator
 	labels            map[string]string
-	identifierName        string
+	identifierName    string
 	// outgoingContext is used by gRPC client calls to build the final call context
 	outgoingContext context.Context
 }
@@ -99,7 +99,7 @@ func NewEgressConnection(agentsRunner agents.Router, idGenerator IdGenerator) (E
 		KeepAliveInterval: viper.GetDuration("ambassador.keepAliveInterval"),
 		agentsRunner:      agentsRunner,
 		idGenerator:       idGenerator,
-		identifierName:        identifierName,
+		identifierName:    identifierName,
 	}
 
 	var err error
@@ -118,7 +118,7 @@ func NewEgressConnection(agentsRunner agents.Router, idGenerator IdGenerator) (E
 		return nil, errors.New("No value found for identifierName (" + identifierName + ").")
 	}
 	log.WithFields(log.Fields{
-		"identifierName":   identifierName,
+		"identifierName":  identifierName,
 		"identifierValue": identifierValue,
 	}).Debug("Starting connection with identifier")
 
