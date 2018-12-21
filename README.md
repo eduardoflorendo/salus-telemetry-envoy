@@ -1,5 +1,5 @@
 
-[![CircleCI branch](https://img.shields.io/circleci/project/github/racker/rmii-telemetry-envoy/master.svg)](https://circleci.com/gh/racker/rmii-telemetry-envoy)
+[![CircleCI branch](https://img.shields.io/circleci/project/github/racker/salus-telemetry-envoy/master.svg)](https://circleci.com/gh/racker/salus-telemetry-envoy)
 
 ## Run Configuration
 
@@ -70,8 +70,7 @@ On MacOS you can install both using `make init`.
 
 ### IntelliJ Run Config
 
-If you haven't already, clone the [telemetry-core](https://github.com/racker/rmii-telemetry-core)
-repo. For the following example, the core repo is cloned next to the envoy repo.
+This module is actually a submodule of the [salus-telemetry-bundle] (https://github.com/racker/salus-telemetry-bundle).  The following instructions expect that you have installed that repo with this as a submodule.
 
 When using IntelliJ, install the Go plugin from JetBrains and create a run configuration
 by right-clicking on the `main.go` file and choosing the "Create ..." option under the
@@ -80,7 +79,7 @@ run options.
 Choose "Directory" for the "Run Kind"
 
 For ease of configuration, you'll want to set the working directory of the run configuration
-to be the `dev-support` directory of the `telemetry-core` project.
+to be the `dev` directory of the `telemetry-bundle` project.
 
 Add the following to the "Program arguments":
 
@@ -99,16 +98,12 @@ Build and install the executable by running:
 make install
 ```
 
-If you haven't already, clone the [telemetry-core](https://github.com/racker/rmii-telemetry-core)
-repo. For the following example, the core repo is cloned next to the envoy repo, but you can
-clone it to a location of your choosing.
-
 Ensure you have `$GOPATH/bin` in your `$PATH` in order to reference the executable installed by `make install`.
 
-Go over to the core repo's `dev-support` directory and run the built envoy from there:
+Go over to the bundle repo's `dev` directory and run the built envoy from there:
 
 ```bash
-cd ../rmii-telemetry-core/dev-support
+cd ../../dev
 telemetry-envoy run --debug --config=envoy-config-provided.yml
 ```
 
@@ -151,4 +146,20 @@ git push --tags
 make release
 ``` 
 
-The packages should now be available at https://github.com/racker/rmii-telemetry-envoy/releases.
+The packages should now be available at https://github.com/racker/salus-telemetry-envoy/releases.
+
+## Architecture
+The envoy operates as a single go process with multiple goroutines handling the subfunctions.  It is diagrammed [here](./doc/envoy.png)
+
+### Connection
+Responsible for the initial attachment to the ambassador and all communication with it, including receiving config/install instructions for the agents, and passing back log messages/metrics from the ingestors.
+
+### Router
+Recieves config/install instructions from the Ambassador, (through the Connection,) and forwards them to the appropriate agentRunner.
+
+### agentRunner
+There is one of these for each agent managed by the envoy.  The runners are responsible for managing the agents, which are invoked as child processes of the envoy.  The runners use a library called the command handler that abstracts out all the common interprocess communication functions required by the runners.
+
+### Ingestors
+These are tcp servers that receive the log/metric data from the agents and forward them back to the Connection for transmittal back to the ambassador.
+
