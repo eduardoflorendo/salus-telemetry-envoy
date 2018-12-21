@@ -77,7 +77,7 @@ type StandardEgressConnection struct {
 	supportedAgents   []telemetry_edge.AgentType
 	idGenerator       IdGenerator
 	labels            map[string]string
-	identifier        string
+	identifierName        string
 	// outgoingContext is used by gRPC client calls to build the final call context
 	outgoingContext context.Context
 }
@@ -86,11 +86,11 @@ func init() {
 	viper.SetDefault(config.AmbassadorAddress, "localhost:6565")
 	viper.SetDefault("grpc.callLimit", 30*time.Second)
 	viper.SetDefault("ambassador.keepAliveInterval", 10*time.Second)
-	viper.SetDefault(config.Identifier, "hostname")
+	viper.SetDefault(config.IdentifierName, "hostname")
 }
 
 func NewEgressConnection(agentsRunner agents.Router, idGenerator IdGenerator) (EgressConnection, error) {
-	identifier := viper.GetString(config.Identifier)
+	identifierName := viper.GetString(config.IdentifierName)
 
 	connection := &StandardEgressConnection{
 		Address:           viper.GetString(config.AmbassadorAddress),
@@ -99,7 +99,7 @@ func NewEgressConnection(agentsRunner agents.Router, idGenerator IdGenerator) (E
 		KeepAliveInterval: viper.GetDuration("ambassador.keepAliveInterval"),
 		agentsRunner:      agentsRunner,
 		idGenerator:       idGenerator,
-		identifier:        identifier,
+		identifierName:        identifierName,
 	}
 
 	var err error
@@ -113,12 +113,12 @@ func NewEgressConnection(agentsRunner agents.Router, idGenerator IdGenerator) (E
 		return nil, err
 	}
 
-	identifierValue, ok := connection.labels[identifier]
+	identifierValue, ok := connection.labels[identifierName]
 	if !ok {
-		return nil, errors.New("No value found for identifier (" + identifier + ").")
+		return nil, errors.New("No value found for identifierName (" + identifierName + ").")
 	}
 	log.WithFields(log.Fields{
-		"identifierKey":   identifier,
+		"identifierName":   identifierName,
 		"identifierValue": identifierValue,
 	}).Debug("Starting connection with identifier")
 
@@ -190,7 +190,7 @@ func (c *StandardEgressConnection) attach() error {
 	envoySummary := &telemetry_edge.EnvoySummary{
 		SupportedAgents: c.supportedAgents,
 		Labels:          c.labels,
-		Identifier:      c.identifier,
+		IdentifierName:  c.identifierName,
 	}
 	log.WithField("summary", envoySummary).Info("attaching")
 
