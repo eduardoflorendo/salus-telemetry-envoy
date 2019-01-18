@@ -2,6 +2,8 @@ module github.com/racker/telemetry-envoy
 
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
+	github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc // indirect
+	github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf // indirect
 	github.com/cenkalti/backoff v2.0.0+incompatible
 	github.com/elastic/go-lumber v0.1.0
 	github.com/golang/protobuf v1.2.0
@@ -12,7 +14,7 @@ require (
 	github.com/mitchellh/go-homedir v1.0.0
 	github.com/oliveagle/jsonpath v0.0.0-20180606110733-2e52cf6e6852
 	github.com/onsi/gomega v1.4.2 // indirect
-	github.com/petergtz/pegomock v0.0.0-20181113220348-aabf5ac7e317
+	github.com/petergtz/pegomock v0.0.0-20190117204212-6ecf83bd3586
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/pkg/errors v0.8.0
 	github.com/satori/go.uuid v1.2.0
@@ -27,6 +29,7 @@ require (
 	google.golang.org/genproto v0.0.0-20181016170114-94acd270e44e // indirect
 	google.golang.org/grpc v1.16.0
 	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
+	gopkg.in/alecthomas/kingpin.v2 v2.2.6 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect
 )
