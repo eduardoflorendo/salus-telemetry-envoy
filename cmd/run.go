@@ -22,6 +22,7 @@ import (
 	"context"
 	"github.com/racker/telemetry-envoy/agents"
 	"github.com/racker/telemetry-envoy/ambassador"
+	"github.com/racker/telemetry-envoy/config"
 	"github.com/racker/telemetry-envoy/ingest"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -95,4 +96,7 @@ func init() {
 
 	runCmd.Flags().String("key", "", "Private key to use for authentication")
 	viper.BindPFlag("tls.key", runCmd.Flag("key"))
+
+	runCmd.Flags().String("resource-id", "", "Identifier of the resource where this Envoy is running")
+	viper.BindPFlag(config.ResourceId, runCmd.Flag("resource-id"))
 }

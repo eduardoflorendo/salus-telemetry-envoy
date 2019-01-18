@@ -8,7 +8,8 @@ configuration via a yaml file passed via `--config`. The following is an example
 file that can be used as a starting point:
 
 ```yaml
-identifier: xen-id # The corresponding label whose value acts as the identifier for the envoy. Defaults to hostname.
+resource_id: "xen-id:1234-5678-9012" # The identifier of the resource where this Envoy is running
+                                     # The convention is a name:value, but is not required.
 labels:
   # Any key:value labels can be provided here an can override discovered labels, such as hostname
   #environment: production
