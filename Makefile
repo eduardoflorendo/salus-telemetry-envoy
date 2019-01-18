@@ -42,7 +42,7 @@ test-verbose: clean generate
 test-report-junit: generate
 	mkdir -p test-results
 	go test -v ./... 2>&1 | tee test-results/go-test.out
-	go install -mod=readonly github.com/jstemmer/go-junit-report
+	go get -mod=readonly github.com/jstemmer/go-junit-report
 	go-junit-report <test-results/go-test.out > test-results/report.xml
 
 .PHONY: coverage
