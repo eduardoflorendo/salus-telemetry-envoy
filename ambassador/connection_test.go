@@ -146,6 +146,20 @@ func TestStandardEgressConnection_Start(t *testing.T) {
 	}
 }
 
+func TestStandardEgressConnection_MissingResourceId(t *testing.T) {
+	pegomock.RegisterMockTestingT(t)
+
+	idGenerator := NewMockIdGenerator()
+	pegomock.When(idGenerator.Generate()).ThenReturn("id-1")
+
+	mockAgentsRunner := NewMockRouter()
+	viper.Set("tls.disabled", true)
+	viper.Set("ambassador.keepAliveInterval", 1*time.Millisecond)
+	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, idGenerator)
+	require.Error(t, err)
+	require.Nil(t, egressConnection)
+}
+
 func TestStandardEgressConnection_PostMetric(t *testing.T) {
 	pegomock.RegisterMockTestingT(t)
 
