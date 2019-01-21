@@ -23,5 +23,5 @@ const (
 	IngestLumberjackBind   = "ingest.lumberjack.bind"
 	IngestTelegrafJsonBind = "ingest.telegraf.json.bind"
 	AmbassadorAddress      = "ambassador.address"
-	IdentifierName         = "identifier"
+	ResourceId             = "resource_id"
 )

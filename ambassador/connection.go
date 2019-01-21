@@ -77,7 +77,7 @@ type StandardEgressConnection struct {
 	supportedAgents   []telemetry_edge.AgentType
 	idGenerator       IdGenerator
 	labels            map[string]string
-	identifierName    string
+	resourceId        string
 	// outgoingContext is used by gRPC client calls to build the final call context
 	outgoingContext context.Context
 }
@@ -86,11 +86,13 @@ func init() {
 	viper.SetDefault(config.AmbassadorAddress, "localhost:6565")
 	viper.SetDefault("grpc.callLimit", 30*time.Second)
 	viper.SetDefault("ambassador.keepAliveInterval", 10*time.Second)
-	viper.SetDefault(config.IdentifierName, "hostname")
 }
 
 func NewEgressConnection(agentsRunner agents.Router, idGenerator IdGenerator) (EgressConnection, error) {
-	identifierName := viper.GetString(config.IdentifierName)
+	resourceId := viper.GetString(config.ResourceId)
+	if resourceId == "" {
+		return nil, errors.Errorf("Envoy configuration is missing %s", config.ResourceId)
+	}
 
 	connection := &StandardEgressConnection{
 		Address:           viper.GetString(config.AmbassadorAddress),
@@ -99,7 +101,7 @@ func NewEgressConnection(agentsRunner agents.Router, idGenerator IdGenerator) (E
 		KeepAliveInterval: viper.GetDuration("ambassador.keepAliveInterval"),
 		agentsRunner:      agentsRunner,
 		idGenerator:       idGenerator,
-		identifierName:    identifierName,
+		resourceId:        resourceId,
 	}
 
 	var err error
@@ -113,13 +115,8 @@ func NewEgressConnection(agentsRunner agents.Router, idGenerator IdGenerator) (E
 		return nil, err
 	}
 
-	identifierValue, ok := connection.labels[identifierName]
-	if !ok {
-		return nil, errors.New("No value found for identifierName (" + identifierName + ").")
-	}
 	log.WithFields(log.Fields{
-		"identifierName":  identifierName,
-		"identifierValue": identifierValue,
+		"resourceId": resourceId,
 	}).Debug("Starting connection with identifier")
 
 	return connection, nil
@@ -190,7 +187,7 @@ func (c *StandardEgressConnection) attach() error {
 	envoySummary := &telemetry_edge.EnvoySummary{
 		SupportedAgents: c.supportedAgents,
 		Labels:          c.labels,
-		IdentifierName:  c.identifierName,
+		ResourceId:      c.resourceId,
 	}
 	log.WithField("summary", envoySummary).Info("attaching")
 
