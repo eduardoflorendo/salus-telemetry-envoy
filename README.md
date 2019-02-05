@@ -139,6 +139,14 @@ make snapshot
 
 ### Release packages
 
+Before performing any releases you will need to setup your Github token 
+[according to the Goreleaser docs](https://goreleaser.com/environment/#github-token)
+and install the RPM tooling using
+
+```
+brew install rpm
+```
+
 To perform a new release of the packages you must first push a new tag to github and then run `make release`.  For example:
 
 ```
