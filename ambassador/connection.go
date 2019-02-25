@@ -125,28 +125,34 @@ func (c *StandardEgressConnection) Start(ctx context.Context, supportedAgents []
 	c.supportedAgents = supportedAgents
 
 	for {
-		err := backoff.RetryNotify(c.attach, backoff.WithContext(backoff.NewExponentialBackOff(), c.ctx),
-			func(err error, delay time.Duration) {
-				log.WithError(err).WithField("delay", delay).Warn("delaying until next attempt")
+		select {
+		case <-c.ctx.Done():
+			return
 
-				cause := errors.Cause(err)
-				if cause != nil && cause != err {
-					if strings.Contains(cause.Error(), "tls: expired certificate") {
-						log.Warn("authenticating certificate has expired, reloading certificates")
+		default:
+			err := backoff.RetryNotify(c.attach, backoff.WithContext(backoff.NewExponentialBackOff(), c.ctx),
+				func(err error, delay time.Duration) {
+					log.WithError(err).WithField("delay", delay).Warn("delaying until next attempt")
 
-						var loadErr error
-						c.grpcTlsDialOption, loadErr = c.loadTlsDialOption()
-						if loadErr != nil {
-							log.WithError(loadErr).Warn("failed to reload certificates")
+					cause := errors.Cause(err)
+					if cause != nil && cause != err {
+						if strings.Contains(cause.Error(), "tls: expired certificate") {
+							log.Warn("authenticating certificate has expired, reloading certificates")
+
+							var loadErr error
+							c.grpcTlsDialOption, loadErr = c.loadTlsDialOption()
+							if loadErr != nil {
+								log.WithError(loadErr).Warn("failed to reload certificates")
+							}
 						}
 					}
-				}
-			})
-		if err != nil {
-			log.WithError(err).Warn("failure during retry section")
-		}
+				})
+			if err != nil {
+				log.WithError(err).Warn("failure during retry section")
+			}
 
-		c.envoyId = c.idGenerator.Generate()
+			c.envoyId = c.idGenerator.Generate()
+		}
 	}
 }
 
