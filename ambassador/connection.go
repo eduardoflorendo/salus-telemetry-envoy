@@ -127,6 +127,7 @@ func (c *StandardEgressConnection) Start(ctx context.Context, supportedAgents []
 	for {
 		select {
 		case <-c.ctx.Done():
+			log.Info("Stopping egress connection handling")
 			return
 
 		default:
