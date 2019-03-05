@@ -1,12 +1,13 @@
 module github.com/racker/telemetry-envoy
 
 require (
-	github.com/BurntSushi/toml v0.3.1 // indirect
+	github.com/BurntSushi/toml v0.3.1
 	github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc // indirect
 	github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf // indirect
 	github.com/cenkalti/backoff v2.0.0+incompatible
 	github.com/elastic/go-lumber v0.1.0
 	github.com/golang/protobuf v1.2.0
+	github.com/iancoleman/strcase v0.0.0-20180726023541-3605ed457bf7
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jstemmer/go-junit-report v0.0.0-20190106144839-af01ea7f8024 // indirect
 	github.com/klauspost/compress v1.4.0 // indirect
