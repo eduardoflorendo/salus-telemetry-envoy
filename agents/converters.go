@@ -38,8 +38,7 @@ func ConvertJsonToToml(configJson string) ([]byte, error) {
 	// process enabled aspect
 	for pluginName, plugin := range flatMap {
 		if enabled, ok := plugin["enabled"].(bool); ok {
-			if enabled {
-			} else {
+			if !enabled {
 				delete(flatMap, pluginName)
 			}
 		} else {

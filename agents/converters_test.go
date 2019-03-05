@@ -17,37 +17,28 @@
 package agents_test
 
 import (
+	"fmt"
 	"github.com/racker/telemetry-envoy/agents"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"io/ioutil"
+	"os"
+	"path"
 	"testing"
 )
 
 func TestConvertJsonToToml(t *testing.T) {
+	// NOTE: the expected TOML content are provided by the testdata/TestConvertJsonToToml_{name}.toml files
 	tests := []struct {
-		name, given, expected string
+		name, given string
 	}{
 		{
 			name:  "normal",
 			given: `{"cpu":{"enabled":true,"collectCpuTime":true},"disk":{"enabled":true,"mountPoints":["/var/lib"],"ignoreFs":null},"mem":{"enabled":true}}`,
-			expected: `[inputs]
-
-  [[inputs.cpu]]
-    collect_cpu_time = true
-
-  [[inputs.disk]]
-    mount_points = ["/var/lib"]
-
-  [[inputs.mem]]
-`,
 		},
 		{
-			name:  "some disabled",
+			name:  "some_disabled",
 			given: `{"cpu":{"enabled":false},"disk":{"enabled":true}}`,
-			expected: `[inputs]
-
-  [[inputs.disk]]
-`,
 		},
 	}
 
@@ -56,7 +47,14 @@ func TestConvertJsonToToml(t *testing.T) {
 			result, err := agents.ConvertJsonToToml(tc.given)
 			require.NoError(t, err)
 
-			assert.Equal(t, []byte(tc.expected), result)
+			expectedFile, err := os.Open(path.Join("testdata",
+				fmt.Sprintf("TestConvertJsonToToml_%s.toml", tc.name)))
+			require.NoError(t, err)
+			defer expectedFile.Close()
+			expected, err := ioutil.ReadAll(expectedFile)
+			require.NoError(t, err)
+
+			assert.Equal(t, expected, result)
 		})
 	}
 }
