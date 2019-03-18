@@ -28,23 +28,28 @@ import (
 )
 
 func TestConvertJsonToToml(t *testing.T) {
-	// NOTE: the expected TOML content are provided by the testdata/TestConvertJsonToToml_{name}.toml files
+	// NOTE: the given JSON content is provided by the testdata/TestConvertJsonToToml_{name}.json files
+	// NOTE: the expected TOML content is provided by the testdata/TestConvertJsonToToml_{name}.toml files
 	tests := []struct {
-		name, given string
+		name string
 	}{
-		{
-			name:  "normal",
-			given: `{"cpu":{"enabled":true,"collectCpuTime":true},"disk":{"enabled":true,"mountPoints":["/var/lib"],"ignoreFs":null},"mem":{"enabled":true}}`,
-		},
-		{
-			name:  "some_disabled",
-			given: `{"cpu":{"enabled":false},"disk":{"enabled":true}}`,
-		},
+		{name: "cpu"},
+		{name: "disk"},
+		{name: "diskio"},
+		{name: "mem"},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := agents.ConvertJsonToToml(tc.given)
+
+			jsonFile, err := os.Open(path.Join("testdata",
+				fmt.Sprintf("TestConvertJsonToToml_%s.json", tc.name)))
+			require.NoError(t, err)
+			defer jsonFile.Close()
+			jsonBytes, err := ioutil.ReadAll(jsonFile)
+			require.NoError(t, err)
+
+			result, err := agents.ConvertJsonToToml(string(jsonBytes))
 			require.NoError(t, err)
 
 			expectedFile, err := os.Open(path.Join("testdata",
@@ -54,7 +59,7 @@ func TestConvertJsonToToml(t *testing.T) {
 			expected, err := ioutil.ReadAll(expectedFile)
 			require.NoError(t, err)
 
-			assert.Equal(t, expected, result)
+			assert.Equal(t, string(expected), string(result))
 		})
 	}
 }

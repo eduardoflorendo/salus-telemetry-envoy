@@ -1,0 +1,5 @@
+[inputs]
+
+  [[inputs.disk]]
+    ignore_fs = ["/dev"]
+    mount_points = ["/var/lib"]
