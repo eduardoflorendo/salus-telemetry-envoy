@@ -1,0 +1,7 @@
+[inputs]
+
+  [[inputs.diskio]]
+    device_tags = ["ID_FS_TYPE"]
+    devices = ["sda"]
+    name_templates = ["$ID_FS_LABEL"]
+    skip_serial_number = true

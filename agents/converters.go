@@ -28,22 +28,27 @@ import (
 func ConvertJsonToToml(configJson string) ([]byte, error) {
 
 	jsonDecoder := json.NewDecoder(strings.NewReader(configJson))
-	var flatMap map[string]map[string]interface{}
+	var flatMap map[string]interface{}
 
 	err := jsonDecoder.Decode(&flatMap)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to decode raw config json")
 	}
 
-	// process enabled aspect
-	for pluginName, plugin := range flatMap {
-		if enabled, ok := plugin["enabled"].(bool); ok {
-			if !enabled {
-				delete(flatMap, pluginName)
-			}
-		} else {
-			delete(flatMap, pluginName)
-		}
+	typeVal, typeExists := flatMap["type"]
+	if !typeExists {
+		return nil, errors.New("missing required 'type' discriminator")
+	}
+	// remove type from map to avoid it ending up in TOML body
+	delete(flatMap, "type")
+
+	pluginName, typeValid := typeVal.(string)
+	if !typeValid {
+		return nil, errors.New("'type' needs to be a string")
+	}
+
+	if pluginName == "" {
+		return nil, errors.New("'type' needs to be non-empty")
 	}
 
 	// convert to inputs->{plugin_name}->[]{plugin config}
@@ -51,14 +56,7 @@ func ConvertJsonToToml(configJson string) ([]byte, error) {
 	inputPlugins := make(map[string][]map[string]interface{}, len(flatMap))
 	mapOfLists["inputs"] = inputPlugins
 
-	for pluginName, plugin := range flatMap {
-		if enabled, ok := plugin["enabled"].(bool); ok && enabled {
-			// strip away the enabled field, since that's ours
-			delete(plugin, "enabled")
-
-			inputPlugins[pluginName] = append(inputPlugins[pluginName], normalizeKeys(plugin))
-		}
-	}
+	inputPlugins[pluginName] = append(inputPlugins[pluginName], normalizeKeys(flatMap))
 
 	var tomlBuffer bytes.Buffer
 	tomlEncoder := toml.NewEncoder(&tomlBuffer)

@@ -1,9 +1,0 @@
-[inputs]
-
-  [[inputs.cpu]]
-    collect_cpu_time = true
-
-  [[inputs.disk]]
-    mount_points = ["/var/lib"]
-
-  [[inputs.mem]]

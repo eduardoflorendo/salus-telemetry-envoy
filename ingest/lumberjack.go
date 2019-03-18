@@ -54,7 +54,7 @@ func (l *Lumberjack) Bind(connection ambassador.EgressConnection) error {
 		return err
 	}
 
-	log.WithField("address", address).Info("Listening for lumberjack")
+	log.WithField("address", address).Debug("Listening for lumberjack")
 	return nil
 }
 
