@@ -74,7 +74,7 @@ func (ar *StandardAgentsRouter) Start(ctx context.Context) {
 }
 
 func (ar *StandardAgentsRouter) ProcessInstall(install *telemetry_edge.EnvoyInstructionInstall) {
-	log.WithField("install", install).Debug("processing install instruction")
+	log.WithField("install", install).Info("processing install instruction")
 
 	agentType := install.Agent.Type
 	if _, exists := specificAgentRunners[agentType]; !exists {
@@ -142,7 +142,7 @@ func (ar *StandardAgentsRouter) ProcessInstall(install *telemetry_edge.EnvoyInst
 }
 
 func (ar *StandardAgentsRouter) ProcessConfigure(configure *telemetry_edge.EnvoyInstructionConfigure) {
-	log.WithField("instruction", configure).Debug("processing configure instruction")
+	log.WithField("instruction", configure).Info("processing configure instruction")
 
 	agentType := configure.GetAgentType()
 	if specificRunner, exists := specificAgentRunners[agentType]; exists {

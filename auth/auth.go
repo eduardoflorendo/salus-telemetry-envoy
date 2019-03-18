@@ -91,7 +91,7 @@ func (p *PreallocatedCertProvider) ProvideCertificates(tlsConfig *TlsConfig) (*t
 		return nil, nil, errors.New("failed to process CA cert")
 	}
 
-	log.WithField("config", tlsConfig.Provided).Info("successfully loaded provided certificates")
+	log.WithField("config", tlsConfig.Provided).Debug("successfully loaded provided certificates")
 	return &certificate, certPool, nil
 }
 

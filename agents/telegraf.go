@@ -152,7 +152,7 @@ func (tr *TelegrafRunner) EnsureRunningState(ctx context.Context, applyConfigs b
 
 	tr.running = runningContext
 	log.WithField("pid", runningContext.Pid()).
-		WithField("agentType", telemetry_edge.AgentType_FILEBEAT).
+		WithField("agentType", telemetry_edge.AgentType_TELEGRAF).
 		Info("started agent")
 }
 
