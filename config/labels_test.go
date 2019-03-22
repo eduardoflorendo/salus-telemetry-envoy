@@ -19,6 +19,7 @@
 package config_test
 
 import (
+	"fmt"
 	"github.com/racker/telemetry-envoy/config"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -85,5 +86,6 @@ func TestComputeLabels_NamespaceConflict(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = config.ComputeLabels()
-	assert.Error(t, err, "Expected error about conflicting namespace")
+	expectedErr := fmt.Sprintf("configured label '%s' conflicts with a system namespace", "discovered.hostname")
+	assert.EqualError(t, err, expectedErr, "Expected error about conflicting namespace")
 }
