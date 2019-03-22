@@ -36,12 +36,12 @@ func TestComputeLabels(t *testing.T) {
 		wantErr   bool
 		viperYaml string
 	}{
-		{name: "no config", wantKeys: []string{"os", "hostname", "arch"}},
-		{name: "with labels config", wantKeys: []string{"os", "hostname", "arch", "env"},
+		{name: "no config", wantKeys: []string{"discovered.os", "discovered.hostname", "discovered.arch"}},
+		{name: "with labels config", wantKeys: []string{"discovered.os", "discovered.hostname", "discovered.arch", "env"},
 			want:      map[string]string{"env": "prod"},
 			viperYaml: "labels:\n  env: prod",
 		},
-		{name: "override with config", wantKeys: []string{"os", "hostname", "arch"},
+		{name: "attempted override with config", wantKeys: []string{"discovered.os", "discovered.hostname", "hostname", "discovered.arch"},
 			want:      map[string]string{"hostname": "hostA"},
 			viperYaml: "labels:\n  hostname: hostA",
 		},
@@ -75,4 +75,15 @@ func TestComputeLabels(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestComputeLabels_NamespaceConflict(t *testing.T) {
+	viper.Reset()
+	viper.SetConfigType("yaml")
+	err := viper.ReadConfig(strings.NewReader(
+		"labels:\n  discovered.hostname: hostA"))
+	require.NoError(t, err)
+
+	_, err = config.ComputeLabels()
+	assert.Error(t, err, "Expected error about conflicting namespace")
 }

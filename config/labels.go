@@ -24,17 +24,26 @@ import (
 	"github.com/spf13/viper"
 	"os"
 	"runtime"
+	"strings"
 )
 
 // Discoverable label names
 const (
-	ArchLabel        = "arch"
-	BiosVendorLabel  = "bios-vendor"
-	BiosVersionLabel = "bios-version"
-	HostnameLabel    = "hostname"
-	OsLabel          = "os"
-	SerialNoLabel    = "serial"
-	XenIdLabel       = "xen-id"
+	// This namespace will be used to qualify labels that are discovered by the
+	// Envoy and differentiate those from the user configured labels.
+	DiscoveredNamespace = "discovered"
+)
+
+var (
+	SystemNamespaces = []string{DiscoveredNamespace}
+
+	ArchLabel        = DiscoveredLabel("arch")
+	BiosVendorLabel  = DiscoveredLabel("bios-vendor")
+	BiosVersionLabel = DiscoveredLabel("bios-version")
+	HostnameLabel    = DiscoveredLabel("hostname")
+	OsLabel          = DiscoveredLabel("os")
+	SerialNoLabel    = DiscoveredLabel("serial")
+	XenIdLabel       = DiscoveredLabel("xen-id")
 )
 
 // ComputeLabels reads any labels specified in the config file.
@@ -79,10 +88,30 @@ func ComputeLabels() (map[string]string, error) {
 
 	configuredLabels := viper.GetStringMapString("labels")
 	for k, v := range configuredLabels {
-		labels[k] = v
+		if ValidateUserLabelName(k) {
+			labels[k] = v
+		} else {
+			return nil, errors.Errorf("configured label '%s' conflicts with a system namespace", k)
+		}
 	}
 
 	log.WithField("labels", labels).Debug("discovered labels")
 
 	return labels, nil
+}
+
+// DiscoveredLabel converts an unqualified label into the qualified, namespaced label name/key
+func DiscoveredLabel(label string) string {
+	return DiscoveredNamespace + "." + label
+}
+
+// ValidateUserLabelName will check that the given label name does not conflict with a system
+// namespace. Returns true if the user's label is valid.
+func ValidateUserLabelName(label string) bool {
+	for _, namespace := range SystemNamespaces {
+		if strings.HasPrefix(label, namespace+".") {
+			return false
+		}
+	}
+	return true
 }
