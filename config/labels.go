@@ -29,13 +29,14 @@ import (
 
 // Discoverable label names
 const (
-	// This namespace will be used to qualify labels that are discovered by the
+	// This prefix will be used to qualify labels that are discovered by the
 	// Envoy and differentiate those from the user configured labels.
-	DiscoveredNamespace = "discovered"
+	DiscoveredPrefix = "discovered"
+	PrefixDelimiter  = "."
 )
 
 var (
-	SystemNamespaces = []string{DiscoveredNamespace}
+	SystemPrefixes = []string{DiscoveredPrefix}
 
 	ArchLabel        = DiscoveredLabel("arch")
 	BiosVendorLabel  = DiscoveredLabel("bios-vendor")
@@ -102,14 +103,14 @@ func ComputeLabels() (map[string]string, error) {
 
 // DiscoveredLabel converts an unqualified label into the qualified, namespaced label name/key
 func DiscoveredLabel(label string) string {
-	return DiscoveredNamespace + "." + label
+	return DiscoveredPrefix + PrefixDelimiter + label
 }
 
 // ValidateUserLabelName will check that the given label name does not conflict with a system
-// namespace. Returns true if the user's label is valid.
+// prefix. Returns true if the user's label is valid.
 func ValidateUserLabelName(label string) bool {
-	for _, namespace := range SystemNamespaces {
-		if strings.HasPrefix(label, namespace+".") {
+	for _, prefix := range SystemPrefixes {
+		if strings.HasPrefix(label, prefix+PrefixDelimiter) {
 			return false
 		}
 	}
