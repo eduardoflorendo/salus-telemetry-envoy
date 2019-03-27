@@ -19,6 +19,7 @@
 package config_test
 
 import (
+	"fmt"
 	"github.com/racker/telemetry-envoy/config"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -36,12 +37,12 @@ func TestComputeLabels(t *testing.T) {
 		wantErr   bool
 		viperYaml string
 	}{
-		{name: "no config", wantKeys: []string{"os", "hostname", "arch"}},
-		{name: "with labels config", wantKeys: []string{"os", "hostname", "arch", "env"},
+		{name: "no config", wantKeys: []string{"discovered.os", "discovered.hostname", "discovered.arch"}},
+		{name: "with labels config", wantKeys: []string{"discovered.os", "discovered.hostname", "discovered.arch", "env"},
 			want:      map[string]string{"env": "prod"},
 			viperYaml: "labels:\n  env: prod",
 		},
-		{name: "override with config", wantKeys: []string{"os", "hostname", "arch"},
+		{name: "attempted override with config", wantKeys: []string{"discovered.os", "discovered.hostname", "hostname", "discovered.arch"},
 			want:      map[string]string{"hostname": "hostA"},
 			viperYaml: "labels:\n  hostname: hostA",
 		},
@@ -75,4 +76,16 @@ func TestComputeLabels(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestComputeLabels_NamespaceConflict(t *testing.T) {
+	viper.Reset()
+	viper.SetConfigType("yaml")
+	err := viper.ReadConfig(strings.NewReader(
+		"labels:\n  discovered.hostname: hostA"))
+	require.NoError(t, err)
+
+	_, err = config.ComputeLabels()
+	expectedErr := fmt.Sprintf("configured label '%s' conflicts with a system prefix", "discovered.hostname")
+	assert.EqualError(t, err, expectedErr, "Expected error about conflicting namespace")
 }
