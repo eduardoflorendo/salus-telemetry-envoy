@@ -92,7 +92,7 @@ func ComputeLabels() (map[string]string, error) {
 		if ValidateUserLabelName(k) {
 			labels[k] = v
 		} else {
-			return nil, errors.Errorf("configured label '%s' conflicts with a system namespace", k)
+			return nil, errors.Errorf("configured label '%s' conflicts with a system prefix", k)
 		}
 	}
 

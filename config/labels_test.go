@@ -86,6 +86,6 @@ func TestComputeLabels_NamespaceConflict(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = config.ComputeLabels()
-	expectedErr := fmt.Sprintf("configured label '%s' conflicts with a system namespace", "discovered.hostname")
+	expectedErr := fmt.Sprintf("configured label '%s' conflicts with a system prefix", "discovered.hostname")
 	assert.EqualError(t, err, expectedErr, "Expected error about conflicting namespace")
 }
