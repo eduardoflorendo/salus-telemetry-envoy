@@ -25,7 +25,14 @@ import (
 	"strings"
 )
 
-func ConvertJsonToToml(configJson string) ([]byte, error) {
+type Conversion int
+
+const (
+	ConversionNone = iota
+	ConversionJsonToTelegrafToml
+)
+
+func ConvertJsonToTelegrafToml(configJson string, extraLabels map[string]string) ([]byte, error) {
 
 	jsonDecoder := json.NewDecoder(strings.NewReader(configJson))
 	var flatMap map[string]interface{}
@@ -56,7 +63,12 @@ func ConvertJsonToToml(configJson string) ([]byte, error) {
 	inputPlugins := make(map[string][]map[string]interface{}, len(flatMap))
 	mapOfLists["inputs"] = inputPlugins
 
-	inputPlugins[pluginName] = append(inputPlugins[pluginName], normalizeKeys(flatMap))
+	finalPluginConfig := normalizeKeys(flatMap)
+	if extraLabels != nil && len(extraLabels) > 0 {
+		finalPluginConfig["tags"] = extraLabels
+	}
+
+	inputPlugins[pluginName] = append(inputPlugins[pluginName], finalPluginConfig)
 
 	var tomlBuffer bytes.Buffer
 	tomlEncoder := toml.NewEncoder(&tomlBuffer)
