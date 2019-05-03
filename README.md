@@ -93,6 +93,12 @@ the scenario currently running on your system.
 
 ### Running from command-line
 
+If this is the first time building from the current directory, you must run:
+
+```bash
+make init-gotools
+```
+
 Build and install the executable by running:
 
 ```bash
