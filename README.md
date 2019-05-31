@@ -61,13 +61,16 @@ export GOPATH=$HOME/go
 export PATH="$PATH:$GOPATH/bin"
 ```
 
-### Tooling
+#### Things to Install
 
 First, install Go 1.11 (or newer). On MacOS you can install with `brew install golang`.
 
 After that you can [install the gRPC compiler tooling for Go](https://grpc.io/docs/quickstart/go.html#install-protocol-buffers-v3) 
 and [goreleaser](https://goreleaser.com/). 
-On MacOS you can install both using `make init`.
+On MacOS you can install both by performing a 
+```bash
+make init
+```
 
 ### IntelliJ Run Config
 
@@ -92,6 +95,8 @@ The `envoy-config-provided.yml` can be replaced with one of the other config fil
 the scenario currently running on your system.
 
 ### Running from command-line
+
+First, ensure you have completed the steps in the "Environment Setup" section, then...
 
 Build and install the executable by running:
 
