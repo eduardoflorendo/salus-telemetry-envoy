@@ -1,19 +1,17 @@
 /*
- *    Copyright 2018 Rackspace US, Inc.
+ * Copyright 2019 Rackspace US, Inc.
  *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *        http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
- *
- *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package agents
@@ -22,6 +20,7 @@ import (
 	"bufio"
 	"context"
 	"github.com/pkg/errors"
+	"github.com/racker/telemetry-envoy/config"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -49,14 +48,9 @@ type CommandHandler interface {
 
 type StandardCommandHandler struct{}
 
-const (
-	agentTerminationTimeoutConfig = "agent.terminationTimeout"
-	agentRestartDelayConfig       = "agent.restartDelay"
-)
-
 func init() {
-	viper.SetDefault(agentTerminationTimeoutConfig, 5*time.Second)
-	viper.SetDefault(agentRestartDelayConfig, 1*time.Second)
+	viper.SetDefault(config.AgentsTerminationTimeoutConfig, 5*time.Second)
+	viper.SetDefault(config.AgentsRestartDelayConfig, 1*time.Second)
 }
 
 func NewCommandHandler() CommandHandler {
@@ -131,7 +125,7 @@ func (h *StandardCommandHandler) WaitOnAgentCommand(ctx context.Context, agentRu
 		log.
 			WithField("agentType", runningContext.agentType).
 			Info("scheduling agent restart")
-		time.AfterFunc(viper.GetDuration(agentRestartDelayConfig), func() {
+		time.AfterFunc(viper.GetDuration(config.AgentsRestartDelayConfig), func() {
 			agentRunner.EnsureRunningState(ctx, false)
 		})
 	}
@@ -221,7 +215,7 @@ func (*StandardCommandHandler) Stop(runningContext *AgentRunningContext) {
 		}
 
 		select {
-		case <-time.After(viper.GetDuration(agentTerminationTimeoutConfig)):
+		case <-time.After(viper.GetDuration(config.AgentsTerminationTimeoutConfig)):
 			log.WithField("agentType", runningContext.agentType).Warn("agent process did not stop in time using TERM, now using KILL")
 			err = runningContext.cmd.Process.Signal(syscall.SIGKILL)
 			if err != nil {
