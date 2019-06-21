@@ -21,6 +21,7 @@ import (
 	"compress/gzip"
 	"context"
 	"github.com/pkg/errors"
+	"github.com/racker/telemetry-envoy/config"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -80,7 +81,7 @@ func IsNoAppliedConfigs(err error) bool {
 }
 
 func init() {
-	viper.SetDefault("agents.dataPath", "data-telemetry-envoy")
+	viper.SetDefault(config.AgentsDataPath, config.DefaultAgentsDataPath)
 }
 
 func downloadExtractTarGz(outputPath, url string, exePath string) error {

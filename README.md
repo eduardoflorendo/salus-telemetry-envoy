@@ -4,18 +4,27 @@
 ## Run Configuration
 
 Envoy's `run` sub-command can accept some configuration via command-line arguments and/or all
-configuration via a yaml file passed via `--config`. The following is an example configuration
-file that can be used as a starting point:
+configuration via a yaml file passed via `--config`. The file **must** be named with a suffix
+of `.yaml` or `.yml`.
+
+The following is an example configuration file that can be used as a starting point:
 
 ```yaml
-resource_id: "xen-id:1234-5678-9012" # The identifier of the resource where this Envoy is running
-                                     # The convention is a name:value, but is not required.
+# The identifier of the resource where this Envoy is running
+# The convention is a type:value, but is not required.
+resource_id: "type:value"
+# Additional key:value string pairs that will be included with Envoy attachment.
 labels:
-  # Any key:value labels can be provided here an can override discovered labels, such as hostname
   #environment: production
 tls:
   auth_service:
+    # The URL of the Salus Authentication Service
     url: http://localhost:8182
+    # The provider type to use for authented allocation of client TLS certificates. Further
+    # configuration is located at tls.token_providers.<token_provider>
+    # Possible options are
+    # - keystone_v2 : uses Identity v2 for x-auth-token allocation
+    # - static : uses statically provided headers to pass to Salus Authentication Service
     token_provider: keystone_v2
   #Provides client authentication certificates pre-allocated. Remove auth_service config when using this.
   #provided:
@@ -34,15 +43,26 @@ tls:
     #  - name: Header-Name
     #    value: headerValue
 ambassador:
+  # The host:port of the secured gRPC endpoint of the Salus Ambassador
   address: localhost:6565
 ingest:
   lumberjack:
+    # host:port of where the lumberjack ingestion should bind
+    # This is intended for consuming output from filebeat
     bind: localhost:5044
   telegraf:
     json:
+      # host:port of where the telegraf json ingestion should bind
+      # This socket will accept data output by telegraf using the socket_writer plugin and
+      # a data_format of json
       bind: localhost:8094
-agent:
+agents:
+  # Data directory where Envoy stores downloaded agents and write agent configs
+  dataPath: /var/lib/telemetry-envoy
+  # The amount of time an agent is allowed to gracefully stop after a TERM signal. If the
+  # timeout is exceeded, then a KILL signal is sent.
   terminationTimeout: 5s
+  # The amount of time to pause before each restart of a failed agent process.
   restartDelay: 1s
 ```
 
